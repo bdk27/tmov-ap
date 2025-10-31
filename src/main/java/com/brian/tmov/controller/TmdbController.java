@@ -1,7 +1,9 @@
 package com.brian.tmov.controller;
 
+import com.brian.tmov.dto.TmdbSearchQuery;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,17 +20,8 @@ public class TmdbController {
     private TmdbSearchService tmdbSearchService;
 
     @GetMapping("/search")
-    public Mono<ResponseEntity<JsonNode>> search(
-            @RequestParam("q") String q,
-            @RequestParam(value = "type", defaultValue = "multi") String type,
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
-            @RequestParam(value = "language", required = false) String language,
-            @RequestParam(value = "region", required = false) String region,
-            @RequestParam(value = "includeAdult", required = false) Boolean includeAdult,
-            @RequestParam(value = "year", required = false) Integer year,
-            @RequestParam(value = "firstAirDateYear", required = false) Integer firstAirDateYear
-    ) {
-        return tmdbSearchService.search(type, q, page, language, region, includeAdult, year, firstAirDateYear)
+    public Mono<ResponseEntity<JsonNode>> search(@Valid TmdbSearchQuery query) {
+        return tmdbSearchService.search(query)
                 .map(ResponseEntity::ok)
                 .onErrorResume(IllegalArgumentException.class,
                         e -> Mono.just(ResponseEntity.badRequest().body(err(e.getMessage()))))

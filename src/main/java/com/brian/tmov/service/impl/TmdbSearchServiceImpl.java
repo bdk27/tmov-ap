@@ -1,6 +1,7 @@
 package com.brian.tmov.service.impl;
 
 import com.brian.tmov.client.TmdbClient;
+import com.brian.tmov.dto.TmdbSearchQuery;
 import com.brian.tmov.enums.TmdbSearchType;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,23 +26,25 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
     String defaultRegion;
 
     @Override
-    public Mono<JsonNode> search(String type, String query, Integer page, String language, String region, Boolean includeAdult, Integer year, Integer firstAirDateYear) {
-        String normalized = (type == null || type.isBlank()) ? "multi" : type.toLowerCase();
-
-        final TmdbSearchType t = TmdbSearchType.from(type);
-        if (query == null || query.isBlank()) {
-            return Mono.error(new IllegalArgumentException("請輸入關鍵字"));
-        }
+    public Mono<JsonNode> search(TmdbSearchQuery query) {
+        final TmdbSearchType t = TmdbSearchType.from(query.typeOrDefault());
 
         Map<String, String> qp = new LinkedHashMap<>();
-        qp.put("query", query);
-        qp.put("page", String.valueOf(page == null ? 1 : Math.max(1, page)));
-        qp.put("language", (language == null || language.isBlank()) ? defaultLanguage : language);
-        qp.put("region", (region == null || region.isBlank()) ? defaultRegion : region);
-        if (includeAdult != null) qp.put("include_adult", includeAdult.toString());
-        if (t == TmdbSearchType.MOVIE && year != null) qp.put("year", String.valueOf(year));
-        if (t == TmdbSearchType.TV && firstAirDateYear != null) qp.put("first_air_date_year", String.valueOf(firstAirDateYear));
+        qp.put("query", query.q());
+        qp.put("page", String.valueOf(query.pageOrDefault()));
+        qp.put("language", query.languageOrDefault(defaultLanguage));
+        qp.put("region", query.regionOrDefault(defaultRegion));
 
-        return tmdbClient.get(new String[]{"search", normalized}, qp);
+        if (query.includeAdult() != null) {
+            qp.put("include_adult", query.includeAdult().toString());
+        }
+        if (t == TmdbSearchType.MOVIE && query.year() != null) {
+            qp.put("year", String.valueOf(query.year()));
+        }
+        if (t == TmdbSearchType.TV && query.firstAirDateYear() != null) {
+            qp.put("first_air_date_year", String.valueOf(query.firstAirDateYear()));
+        }
+
+        return tmdbClient.get(new String[]{"search", t.value()}, qp);
     }
 }

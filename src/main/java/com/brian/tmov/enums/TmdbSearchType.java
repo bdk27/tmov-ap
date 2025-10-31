@@ -15,7 +15,9 @@ public enum TmdbSearchType {
 
     public static TmdbSearchType from(String s){
         if (s == null || s.isBlank()) return MULTI;
-        String lower = s.toLowerCase();
+
+        String lower = s.trim().toLowerCase();
+
         return Arrays.stream(values())
                 .filter(t -> t.value.equals(lower))
                 .findFirst()
