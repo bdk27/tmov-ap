@@ -3,11 +3,13 @@ package com.brian.tmov.service.impl;
 import com.brian.tmov.client.TmdbClient;
 import com.brian.tmov.dto.TmdbSearchQuery;
 import com.brian.tmov.enums.TmdbSearchType;
+import com.brian.tmov.exception.DownstreamException;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
@@ -29,6 +31,20 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
     public Mono<JsonNode> search(TmdbSearchQuery query) {
         final TmdbSearchType t = TmdbSearchType.from(query.typeOrDefault());
 
+        Map<String, String> qp = getStringMap(query, t);
+
+        return tmdbClient.get(new String[]{"search", t.value()}, qp)
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    String errorBody = e.getResponseBodyAsString();
+                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
+                })
+                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
+                    // 捕獲其他 tmdbClient 可能的錯誤 (例如連線逾時)
+                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
+                });
+    }
+
+    private Map<String, String> getStringMap(TmdbSearchQuery query, TmdbSearchType t) {
         Map<String, String> qp = new LinkedHashMap<>();
         qp.put("query", query.q());
         qp.put("page", String.valueOf(query.pageOrDefault()));
@@ -44,7 +60,6 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
         if (t == TmdbSearchType.TV && query.firstAirDateYear() != null) {
             qp.put("first_air_date_year", String.valueOf(query.firstAirDateYear()));
         }
-
-        return tmdbClient.get(new String[]{"search", t.value()}, qp);
+        return qp;
     }
 }
