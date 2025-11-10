@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/tmdb")
 public class TmdbController {
@@ -30,12 +32,11 @@ public class TmdbController {
     }
 
     @GetMapping("/popular-backdrop")
-    public Mono<ResponseEntity<JsonNode>> getRandomPopularBackdrop() {
+    public Mono<ResponseEntity<Map<String, String>>> getRandomPopularBackdrop() {
         return tmdbDiscoverService.getRandomPopularBackdropUrl()
-                .map(url -> {
-                    ObjectNode json = JsonNodeFactory.instance.objectNode();
-                    json.put("backdrop_url", url);
-                    return ResponseEntity.ok().body((JsonNode) json);
+                .map(urls -> {
+                    // 5. (修改) Spring 會自動將 Map 轉換為 JSON 物件
+                    return ResponseEntity.ok().body(urls);
                 });
     }
 }
