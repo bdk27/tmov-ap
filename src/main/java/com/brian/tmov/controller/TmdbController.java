@@ -4,8 +4,6 @@ import com.brian.tmov.dto.TmdbSearchQuery;
 import com.brian.tmov.service.TmdbDiscoverService;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -28,15 +26,27 @@ public class TmdbController {
 
     @GetMapping("/search")
     public Mono<ResponseEntity<JsonNode>> search(@Valid TmdbSearchQuery query) {
-        return tmdbSearchService.search(query).map(ResponseEntity::ok);
+        return tmdbSearchService.search(query)
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/popular-backdrop")
     public Mono<ResponseEntity<Map<String, String>>> getRandomPopularBackdrop() {
-        return tmdbDiscoverService.getRandomPopularBackdropUrl()
+        return tmdbDiscoverService.getRandomPopularBackdrops()
                 .map(urls -> {
-                    // 5. (修改) Spring 會自動將 Map 轉換為 JSON 物件
                     return ResponseEntity.ok().body(urls);
                 });
+    }
+
+    @GetMapping("/popular-movies")
+    public Mono<ResponseEntity<JsonNode>> getPopularMovies() {
+        return tmdbDiscoverService.getPopularMovies()
+                .map(ResponseEntity::ok);
+    }
+
+    @GetMapping("/trending")
+    public Mono<ResponseEntity<JsonNode>> getTrendingMovies() {
+        return tmdbDiscoverService.getTrendingMovies()
+                .map(ResponseEntity::ok);
     }
 }

@@ -9,7 +9,7 @@ public interface TmdbGetImageService {
     String getFullImageUrl(String path, String size);
 
     /**
-     * 取得一個預設尺寸 (w500) 的海報 URL
+     * 取得一個預設尺寸 (w780) 的海報 URL
      */
     String getDefaultPosterUrl(String posterPath);
 

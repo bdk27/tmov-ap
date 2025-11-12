@@ -23,7 +23,7 @@ public class TmdbGetImageServiceImpl implements TmdbGetImageService {
     private String imageBaseUrl;
 
     // 定義一些好用的預設尺寸
-    private static final String DEFAULT_POSTER_SIZE = "w500";
+    private static final String DEFAULT_POSTER_SIZE = "w780";
     private static final String DEFAULT_BACKDROP_SIZE = "w1280";
     private static final String DEFAULT_PROFILE_SIZE = "h632";
 
