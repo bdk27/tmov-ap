@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
@@ -44,9 +45,16 @@ public class TmdbController {
                 .map(ResponseEntity::ok);
     }
 
+    @GetMapping("/popular-tv")
+    public Mono<ResponseEntity<JsonNode>> getPopularTv() {
+        return tmdbDiscoverService.getPopularTv()
+                .map(ResponseEntity::ok);
+    }
+
     @GetMapping("/trending")
-    public Mono<ResponseEntity<JsonNode>> getTrendingMovies() {
-        return tmdbDiscoverService.getTrendingMovies()
+    public Mono<ResponseEntity<JsonNode>> getTrendingMovies(
+            @RequestParam(value = "time_window", defaultValue = "day") String timeWindow) {
+        return tmdbDiscoverService.getTrendingMovies(timeWindow)
                 .map(ResponseEntity::ok);
     }
 }

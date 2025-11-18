@@ -134,8 +134,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
     }
 
     private Map<String, String> getBackdropUrls(String backdropPath) {
-        // (修正) 使用 w780 作為手機版背景圖
-        String desktopUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "original");
+        String desktopUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w1280");
         String mobileUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w780");
 
         Map<String, String> urls = new HashMap<>();
@@ -165,16 +164,35 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
     }
 
     @Override
-    public Mono<JsonNode> getTrendingMovies() {
+    public Mono<JsonNode> getPopularTv() {
+        Map<String, String> qp = Map.of(
+                "language", defaultLanguage,
+                "page", "1"
+        );
+
+        return tmdbClient.get(new String[]{"tv", "popular"}, qp)
+                // (重要) 同樣重複使用 JSON 加工服務
+                .map(tmdbResponseTransformerService::transformSearchResponse)
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    String errorBody = e.getResponseBodyAsString();
+                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
+                })
+                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
+                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
+                });
+    }
+
+    @Override
+    public Mono<JsonNode> getTrendingMovies(String timeWindow) {
         Map<String, String> qp = Map.of(
                 "language", defaultLanguage
         );
 
-        // 呼叫 /trending/movie/day
-        return tmdbClient.get(new String[]{"trending", "movie", "day"}, qp)
-                // (關鍵) 同樣重複使用 Transformer 服務來加工 JSON
+        String finalTimeWindow = (timeWindow != null && timeWindow.equals("week")) ? "week" : "day";
+        log.info("取得熱門趨勢，時間範圍: {}", finalTimeWindow);
+
+        return tmdbClient.get(new String[]{"trending", "movie", finalTimeWindow}, qp)
                 .map(tmdbResponseTransformerService::transformSearchResponse)
-                // --- 統一的錯誤處理 ---
                 .onErrorResume(WebClientResponseException.class, e -> {
                     String errorBody = e.getResponseBodyAsString();
                     log.error("TMDB /trending/movie/day API 請求失敗 ({}): {}", e.getStatusCode(), errorBody, e);
