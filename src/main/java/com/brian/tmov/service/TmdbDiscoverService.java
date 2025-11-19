@@ -16,6 +16,9 @@ public interface TmdbDiscoverService {
 //    取得熱門影集
     Mono<JsonNode> getPopularTv();
 
+//    取得熱門人物
+    Mono<JsonNode> getPopularPerson();
+
 //    取得本日趨勢電影列表
     Mono<JsonNode> getTrendingMovies(String timeWindow);
 }

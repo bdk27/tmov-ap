@@ -51,6 +51,12 @@ public class TmdbController {
                 .map(ResponseEntity::ok);
     }
 
+    @GetMapping("/popular-person")
+    public Mono<ResponseEntity<JsonNode>> getPopularPerson() {
+        return tmdbDiscoverService.getPopularPerson()
+                .map(ResponseEntity::ok);
+    }
+
     @GetMapping("/trending")
     public Mono<ResponseEntity<JsonNode>> getTrendingMovies(
             @RequestParam(value = "time_window", defaultValue = "day") String timeWindow) {

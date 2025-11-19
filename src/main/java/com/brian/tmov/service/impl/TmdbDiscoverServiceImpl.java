@@ -183,6 +183,25 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
     }
 
     @Override
+    public Mono<JsonNode> getPopularPerson() {
+        Map<String, String> qp = Map.of(
+                "language", defaultLanguage,
+                "page", "1"
+        );
+
+        return tmdbClient.get(new String[]{"person", "popular"}, qp)
+                // Transformer 會自動處理 profile_path -> full_profile_url
+                .map(tmdbResponseTransformerService::transformSearchResponse)
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    String errorBody = e.getResponseBodyAsString();
+                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
+                })
+                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
+                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
+                });
+    }
+
+    @Override
     public Mono<JsonNode> getTrendingMovies(String timeWindow) {
         Map<String, String> qp = Map.of(
                 "language", defaultLanguage
