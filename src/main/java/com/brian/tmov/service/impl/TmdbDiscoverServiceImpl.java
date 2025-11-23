@@ -14,10 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
@@ -38,188 +37,188 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
 
     private final Random random = new Random();
 
+    // ===================================================================================
+    // 取得隨機背景 (首頁 Hero)
+    // ===================================================================================
+
     @Override
     public Mono<Map<String, String>> getRandomPopularBackdrops() {
-        // 1. 呼叫私有輔助方法，取得第一頁的熱門電影
         return this.fetchPopularMoviePage()
-                // 2. 使用 flatMap 進行鏈式呼叫 (處理非同步)
                 .flatMap(responseNode -> {
                     JsonNode results = responseNode.path("results");
                     if (results.isArray() && !results.isEmpty()) {
-                        // 3. 隨機挑選一部電影
-                        JsonNode randomMovie = results.get(random.nextInt(results.size()));
-                        String backdropPath = randomMovie.path("backdrop_path").asText(null);
+
+                        // 過濾：只保留 "有背景圖" 的電影
+                        List<JsonNode> validMovies = StreamSupport.stream(results.spliterator(), false)
+                                .filter(movie -> {
+                                    String path = movie.path("backdrop_path").asText(null);
+                                    return path != null && !path.isBlank() && !"null".equals(path);
+                                })
+                                .toList();
+
+                        if (validMovies.isEmpty()) {
+                            return Mono.error(new IllegalArgumentException("熱門列表中沒有任何電影包含背景圖"));
+                        }
+
+                        // 隨機挑選
+                        JsonNode randomMovie = validMovies.get(random.nextInt(validMovies.size()));
+
+                        String backdropPath = randomMovie.path("backdrop_path").asText();
                         long movieId = randomMovie.path("id").asLong();
 
-                        // 4. (重要) 使用 Mono.zip 並行取得圖片和預告片
-                        //    Mono.zip 會等待兩個 Mono 都完成
+                        // 並行取得：(A) 圖片網址 + (B) 預告片
                         return Mono.zip(
-                                // Mono 1: 取得圖片 (這是同步的，所以用 just 包裝)
                                 Mono.just(getBackdropUrls(backdropPath)),
-                                // Mono 2: 取得預告片 (這是非同步的)
-                                this.fetchMovieTrailer(movieId)
+                                // 【關鍵修正】加上 .defaultIfEmpty("")
+                                // 確保即使沒有預告片，Mono.zip 也不會崩潰，背景圖依然能顯示
+                                this.getMovieTrailer(movieId).defaultIfEmpty("")
                         );
                     }
                     return Mono.error(new IllegalArgumentException("無法從 TMDB 取得熱門電影列表"));
                 })
-                // 5. 組合最終結果
                 .map(tuple -> {
-                    // tuple.getT1() 是圖片 Map
-                    // tuple.getT2() 是預告片 URL (可能為 null)
                     Map<String, String> finalUrls = tuple.getT1();
-                    finalUrls.put("trailerUrl", tuple.getT2());
+                    String trailerUrl = tuple.getT2();
+
+                    // 處理空字串轉 null
+                    if (trailerUrl.isEmpty()) {
+                        finalUrls.put("trailerUrl", null);
+                    } else {
+                        finalUrls.put("trailerUrl", trailerUrl);
+                    }
                     return finalUrls;
                 });
     }
 
-    private Mono<JsonNode> fetchPopularMoviePage() {
-        Map<String, String> qp = Map.of(
-                "language", defaultLanguage,
-                "page", "1"
-        );
-        return tmdbClient.get(new String[]{"movie", "popular"}, qp)
+    // ===================================================================================
+    // 公開 API 實作
+    // ===================================================================================
+
+    @Override
+    public Mono<JsonNode> getPopularMovies() {
+        // 重用 fetchPopularMoviePage，再加上 JSON 轉換
+        return this.fetchPopularMoviePage()
+                .map(tmdbResponseTransformerService::transformSearchResponse);
+    }
+
+    @Override
+    public Mono<JsonNode> getPopularTv() {
+        return fetchListFromTmdb(new String[]{"tv", "popular"}, Map.of("page", "1"));
+    }
+
+    @Override
+    public Mono<JsonNode> getPopularPerson() {
+        return fetchListFromTmdb(new String[]{"person", "popular"}, Map.of("page", "1"));
+    }
+
+    @Override
+    public Mono<JsonNode> getTrendingMovies(String timeWindow) {
+        String finalTimeWindow = (timeWindow != null && timeWindow.equals("week")) ? "week" : "day";
+        return fetchListFromTmdb(new String[]{"trending", "movie", finalTimeWindow}, Collections.emptyMap());
+    }
+
+    @Override
+    public Mono<JsonNode> getUpcomingMovies() {
+        return fetchListFromTmdb(new String[]{"movie", "upcoming"}, Map.of("page", "1", "region", "TW"));
+    }
+
+    @Override
+    public Mono<JsonNode> getNowPlayingMovies() {
+        return fetchListFromTmdb(new String[]{"movie", "now_playing"}, Map.of("page", "1", "region", "TW"));
+    }
+
+    @Override
+    public Mono<String> getMovieTrailer(long movieId) {
+        if (movieId == 0) return Mono.empty();
+
+        Map<String, String> qp = new HashMap<>();
+        qp.put("language", defaultLanguage);
+        qp.put("include_video_language", "zh,en");
+
+        return tmdbClient.get(new String[]{"movie", String.valueOf(movieId), "videos"}, qp)
+                .flatMap(videoNode -> {
+                    String trailerUrl = findTrailerUrl(videoNode);
+                    return Mono.justOrEmpty(trailerUrl);
+                })
                 .onErrorResume(WebClientResponseException.class, e -> {
-                    log.error("TMDB /movie/popular API 請求失敗: {}", e.getMessage());
-                    return Mono.error(new DownstreamException("TMDB API /movie/popular 請求失敗", e));
+                    if (e.getStatusCode().value() == 404) {
+                        return Mono.empty();
+                    }
+                    log.error("TMDB /movie/{}/videos 請求失敗: {}", movieId, e.getMessage());
+                    return Mono.error(new DownstreamException("無法取得預告片", e));
                 })
                 .onErrorResume(ex -> !(ex instanceof DownstreamException), e -> {
-                    log.error("TMDB 客戶端未知錯誤 (fetchPopularMoviePage): {}", e.getMessage());
+                    log.error("取得預告片時發生未知錯誤", e);
+                    return Mono.empty();
+                });
+    }
+
+    // ===================================================================================
+    // 通用輔助方法
+    // ===================================================================================
+
+    private Mono<JsonNode> fetchListFromTmdb(String[] path, Map<String, String> extraParams) {
+        Map<String, String> qp = new HashMap<>();
+        qp.put("language", defaultLanguage);
+        qp.putAll(extraParams);
+
+        return tmdbClient.get(path, qp)
+                .map(tmdbResponseTransformerService::transformSearchResponse)
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    String errorBody = e.getResponseBodyAsString();
+                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode(), e));
+                })
+                .onErrorResume(ex -> !(ex instanceof DownstreamException), e -> {
                     return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤", e));
                 });
     }
 
-    private Mono<String> fetchMovieTrailer(long movieId) {
-        if (movieId == 0) {
-            return Mono.empty(); // 如果沒有 movieId，返回空的 Mono
-        }
-
-        // 取得預告片 (不需要語言，通常 EN 預告片最完整)
-        return tmdbClient.get(new String[]{"movie", String.valueOf(movieId), "videos"}, Collections.emptyMap())
-                // (修正) 使用 flatMap 和 Mono.justOrEmpty 來安全處理 null
-                .flatMap(videoNode -> {
-                    String trailerUrl = findTrailerUrl(videoNode);
-                    return Mono.justOrEmpty(trailerUrl); // 如果 trailerUrl 是 null，會返回 Mono.empty()
-                })
+    private Mono<JsonNode> fetchPopularMoviePage() {
+        Map<String, String> qp = Map.of("language", defaultLanguage, "page", "1");
+        return tmdbClient.get(new String[]{"movie", "popular"}, qp)
                 .onErrorResume(WebClientResponseException.class, e -> {
-                    // 404 Not Found 是很常見的 (例如電影沒有影片)，不應視為嚴重錯誤
-                    if (e.getStatusCode().value() == 404) {
-                        log.warn("無法取得電影 ID {} 的預告片 (404 Not Found)", movieId);
-                        return Mono.empty(); // 返回空 Mono，而不是拋出錯誤
-                    }
-                    log.error("TMDB /movie/videos API 請求失敗: {}", e.getMessage());
-                    return Mono.error(new DownstreamException("TMDB API /movie/videos 請求失敗", e));
+                    log.error("TMDB /movie/popular 請求失敗: {}", e.getMessage());
+                    return Mono.error(new DownstreamException("TMDB API 請求失敗", e));
                 })
                 .onErrorResume(ex -> !(ex instanceof DownstreamException), e -> {
-                    log.error("TMDB 客戶端未知錯誤 (fetchMovieTrailer): {}", e.getMessage());
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤", e));
+                    return Mono.error(new DownstreamException("TMDB 未知錯誤", e));
                 });
     }
 
     private String findTrailerUrl(JsonNode videoNode) {
         JsonNode results = videoNode.path("results");
-        if (results.isArray() && !results.isEmpty()) {
-            for (JsonNode video : results) {
-                // 必須是 "Trailer" 且 來源是 "YouTube"
-                if ("Trailer".equals(video.path("type").asText()) &&
-                        "YouTube".equals(video.path("site").asText())) {
-                    String key = video.path("key").asText(null);
-                    if (key != null) {
-                        return "https://www.youtube.com/embed/" + key;
-                    }
+        if (!results.isArray() || results.isEmpty()) return null;
+
+        String fallback = null;
+
+        for (JsonNode video : results) {
+            // 只看 YouTube
+            if ("YouTube".equals(video.path("site").asText())) {
+                String key = video.path("key").asText(null);
+                if (key == null) continue;
+
+                String url = "https://www.youtube.com/embed/" + key; // 移除自動播放參數
+                String type = video.path("type").asText();
+
+                if ("Trailer".equals(type)) {
+                    return url;
+                }
+
+                if ("Teaser".equals(type) && fallback == null) {
+                    fallback = url;
                 }
             }
         }
-        log.warn("在 videoNode 中找不到 'YouTube' 的 'Trailer'");
-        return null; // 找不到預告片
+
+        return fallback;
     }
 
     private Map<String, String> getBackdropUrls(String backdropPath) {
         String desktopUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w1280");
         String mobileUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w780");
-
         Map<String, String> urls = new HashMap<>();
         urls.put("backdropDesktopUrl", desktopUrl);
         urls.put("backdropMobileUrl", mobileUrl);
         return urls;
-    }
-
-    @Override
-    public Mono<JsonNode> getPopularMovies() {
-        Map<String, String> qp = Map.of(
-                "language", defaultLanguage,
-                "page", "1"
-        );
-
-        return tmdbClient.get(new String[]{"movie", "popular"}, qp)
-                .map(tmdbResponseTransformerService::transformSearchResponse)
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    String errorBody = e.getResponseBodyAsString();
-                    log.warn("呼叫 TMDB /movie/popular (for list) 失敗: {}", errorBody, e);
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
-                    log.error("處理 /movie/popular (for list) 時發生未知錯誤", e);
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
-                });
-    }
-
-    @Override
-    public Mono<JsonNode> getPopularTv() {
-        Map<String, String> qp = Map.of(
-                "language", defaultLanguage,
-                "page", "1"
-        );
-
-        return tmdbClient.get(new String[]{"tv", "popular"}, qp)
-                // (重要) 同樣重複使用 JSON 加工服務
-                .map(tmdbResponseTransformerService::transformSearchResponse)
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    String errorBody = e.getResponseBodyAsString();
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
-                });
-    }
-
-    @Override
-    public Mono<JsonNode> getPopularPerson() {
-        Map<String, String> qp = Map.of(
-                "language", defaultLanguage,
-                "page", "1"
-        );
-
-        return tmdbClient.get(new String[]{"person", "popular"}, qp)
-                // Transformer 會自動處理 profile_path -> full_profile_url
-                .map(tmdbResponseTransformerService::transformSearchResponse)
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    String errorBody = e.getResponseBodyAsString();
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
-                });
-    }
-
-    @Override
-    public Mono<JsonNode> getTrendingMovies(String timeWindow) {
-        Map<String, String> qp = Map.of(
-                "language", defaultLanguage
-        );
-
-        String finalTimeWindow = (timeWindow != null && timeWindow.equals("week")) ? "week" : "day";
-        log.info("取得熱門趨勢，時間範圍: {}", finalTimeWindow);
-
-        return tmdbClient.get(new String[]{"trending", "movie", finalTimeWindow}, qp)
-                .map(tmdbResponseTransformerService::transformSearchResponse)
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    String errorBody = e.getResponseBodyAsString();
-                    log.error("TMDB /trending/movie/day API 請求失敗 ({}): {}", e.getStatusCode(), errorBody, e);
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode(), e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
-                    log.error("TMDB 客戶端發生未知錯誤 (Trending)", e);
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
-                });
     }
 }

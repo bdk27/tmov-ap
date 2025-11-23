@@ -10,15 +10,23 @@ public interface TmdbDiscoverService {
 //    取得一張隨機的電影背景圖
     Mono<Map<String, String>> getRandomPopularBackdrops();
 
-//    取得熱門電影列表
+//    熱門電影列表
     Mono<JsonNode> getPopularMovies();
 
-//    取得熱門影集
+//    熱門影集列表
     Mono<JsonNode> getPopularTv();
 
-//    取得熱門人物
+//    熱門人物列表
     Mono<JsonNode> getPopularPerson();
 
-//    取得本日趨勢電影列表
+//    本日趨勢電影列表
     Mono<JsonNode> getTrendingMovies(String timeWindow);
+
+//    即將上映列表
+    Mono<JsonNode> getUpcomingMovies();
+
+//    現正熱映列表
+    Mono<JsonNode> getNowPlayingMovies();
+
+    Mono<String> getMovieTrailer(long movieId);
 }
