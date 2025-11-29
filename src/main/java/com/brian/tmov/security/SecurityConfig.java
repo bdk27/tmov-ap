@@ -3,38 +3,43 @@ package com.brian.tmov.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
+@EnableWebFluxSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
-                // 前後端分離 API 通常關閉 CSRF（不使用表單）
-                .csrf(AbstractHttpConfigurer::disable)
-                // 先開預設 CORS；下面會再補 CORS 設定 bean
-                .cors(Customizer.withDefaults())
-                .authorizeHttpRequests(auth -> auth
-                        // 允許測試的公開 API
-                        .requestMatchers("/api/tmdb/**").permitAll()
-                        // （可選）靜態資源、健康檢查等
-                        .requestMatchers("/error", "/actuator/health").permitAll()
-                        // 允許所有預檢請求
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 其他路徑先要求驗證（之後做登入/收藏會用到）
-                        .anyRequest().authenticated()
+                // 2. CSRF 在 API 模式通常關閉
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+
+                // 3. CORS 設定
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 4. 權限設定 (注意：這裡用 authorizeExchange 而不是 authorizeHttpRequests)
+                .authorizeExchange(exchanges -> exchanges
+                        // 允許 OPTIONS 預檢請求
+                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        // 允許所有 TMDB API
+                        .pathMatchers("/api/tmdb/**").permitAll()
+                        // 允許健康檢查等端點
+                        .pathMatchers("/actuator/**", "/error").permitAll()
+                        // 其他所有請求都需要驗證
+                        .anyExchange().authenticated()
                 )
-                // 先用 HTTP Basic 做簡易保護（開發用）
-                .httpBasic(Customizer.withDefaults());
+                // 5. 使用 HTTP Basic 驗證 (開發用)
+                .httpBasic(withDefaults());
 
         return http.build();
     }
@@ -43,22 +48,21 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 關鍵：允許您 Nuxt 前端 (http://localhost:3000) 的來源
+        // 允許的前端來源 (Nuxt)
         configuration.setAllowedOrigins(List.of("http://localhost:3000"));
 
-        // 允許所有標準方法
+        // 允許的方法
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        // 允許所有標頭
+        // 允許的標頭
         configuration.setAllowedHeaders(List.of("*"));
 
-        // 關鍵：因為您前端有 credentials: 'include'，所以必須設為 true
+        // 允許攜帶憑證 (Cookies)
         configuration.setAllowCredentials(true);
 
+        // 注意：這裡是 reactive package 下的 UrlBasedCorsConfigurationSource
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // 將此設定套用到所有 API 路徑
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }

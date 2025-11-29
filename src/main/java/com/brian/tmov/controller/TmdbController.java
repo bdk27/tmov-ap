@@ -24,51 +24,76 @@ public class TmdbController {
     @Autowired
     private TmdbDiscoverService tmdbDiscoverService;
 
+//    搜尋
     @GetMapping("/search")
     public Mono<ResponseEntity<JsonNode>> search(@Valid TmdbSearchQuery query) {
-        return tmdbSearchService.search(query)
-                .map(ResponseEntity::ok);
+        return tmdbSearchService.search(query).map(ResponseEntity::ok);
     }
 
+//    隨機背景
     @GetMapping("/popular-backdrop")
-    public Mono<ResponseEntity<Map<String, String>>> getRandomPopularBackdrop() {
-        return tmdbDiscoverService.getRandomPopularBackdrops()
-                .map(urls -> {
-                    return ResponseEntity.ok().body(urls);
-                });
+    public Mono<ResponseEntity<Map<String, String>>> getRandomPopularBackdrop(
+            @RequestParam(defaultValue = "movie") String category
+    ) {
+        return tmdbDiscoverService.getRandomPopularBackdrops(category).map(ResponseEntity::ok);
     }
 
-    @GetMapping("/popular-movies")
-    public Mono<ResponseEntity<JsonNode>> getPopularMovies() {
-        return tmdbDiscoverService.getPopularMovies()
-                .map(ResponseEntity::ok);
-    }
-
-    @GetMapping("/popular-tv")
-    public Mono<ResponseEntity<JsonNode>> getPopularTv() {
-        return tmdbDiscoverService.getPopularTv()
-                .map(ResponseEntity::ok);
-    }
-
-    @GetMapping("/popular-person")
-    public Mono<ResponseEntity<JsonNode>> getPopularPerson() {
-        return tmdbDiscoverService.getPopularPerson()
-                .map(ResponseEntity::ok);
-    }
-
+//    趨勢
     @GetMapping("/trending")
     public Mono<ResponseEntity<JsonNode>> getTrendingMovies(
-            @RequestParam(value = "time_window", defaultValue = "day") String timeWindow) {
-        return tmdbDiscoverService.getTrendingMovies(timeWindow)
-                .map(ResponseEntity::ok);
+            @RequestParam(value = "time_window", defaultValue = "day") String timeWindow,
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+   ) {
+        return tmdbDiscoverService.getTrendingAll(timeWindow, page).map(ResponseEntity::ok);
     }
 
+//    熱門電影
+    @GetMapping("/popular-movies")
+    public Mono<ResponseEntity<JsonNode>> getPopularMovies(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getPopularMovies(page).map(ResponseEntity::ok);
+    }
+
+//    熱門電視劇
+    @GetMapping("/popular-tv")
+    public Mono<ResponseEntity<JsonNode>> getPopularTv(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getPopularTv(page).map(ResponseEntity::ok);
+    }
+
+//    熱門動畫
+    @GetMapping("/popular-anime")
+    public Mono<ResponseEntity<JsonNode>> getPopularAnimation(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularAnimation(page).map(ResponseEntity::ok);
+    }
+
+//    熱門綜藝
+    @GetMapping("/popular-variety")
+    public Mono<ResponseEntity<JsonNode>> getPopularVariety(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularVariety(page).map(ResponseEntity::ok);
+    }
+
+//    熱門人物
+    @GetMapping("/popular-person")
+    public Mono<ResponseEntity<JsonNode>> getPopularPerson(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getPopularPerson(page).map(ResponseEntity::ok);
+    }
+
+//    即將上映
     @GetMapping("/upcoming")
-    public Mono<ResponseEntity<JsonNode>> getUpcomingMovies() {
-        return tmdbDiscoverService.getUpcomingMovies().
-                map(ResponseEntity::ok);
+    public Mono<ResponseEntity<JsonNode>> getUpcomingMovies(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getUpcomingMovies(page).map(ResponseEntity::ok);
     }
 
+//    預告片
     @GetMapping("/movie/{id}/trailer")
     public Mono<ResponseEntity<JsonNode>> getMovieTrailer(@PathVariable Long id) {
         return tmdbDiscoverService.getMovieTrailer(id)
@@ -81,9 +106,11 @@ public class TmdbController {
                 .map(json -> ResponseEntity.ok().body(json));
     }
 
+//    現正熱映
     @GetMapping("/now-playing")
-    public Mono<ResponseEntity<JsonNode>> getNowPlayingMovies() {
-        return tmdbDiscoverService.getNowPlayingMovies().
-                map(ResponseEntity::ok);
+    public Mono<ResponseEntity<JsonNode>> getNowPlayingMovies(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getNowPlayingMovies(page).map(ResponseEntity::ok);
     }
 }
