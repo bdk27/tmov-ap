@@ -55,7 +55,7 @@ public class TmdbController {
         return tmdbDiscoverService.getPopularMovies(page).map(ResponseEntity::ok);
     }
 
-//    熱門電視劇
+//    熱門電視節目
     @GetMapping("/popular-tv")
     public Mono<ResponseEntity<JsonNode>> getPopularTv(
             @RequestParam(value = "page", defaultValue = "1") Integer page
@@ -70,11 +70,39 @@ public class TmdbController {
         return tmdbDiscoverService.getPopularAnimation(page).map(ResponseEntity::ok);
     }
 
+//    熱門電視劇
+    @GetMapping("/popular-drama")
+    public Mono<ResponseEntity<JsonNode>> getPopularDrama(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularDrama(page).map(ResponseEntity::ok);
+    }
+
 //    熱門綜藝
     @GetMapping("/popular-variety")
     public Mono<ResponseEntity<JsonNode>> getPopularVariety(
             @RequestParam(value = "page", defaultValue = "1") Integer page) {
         return tmdbDiscoverService.getPopularVariety(page).map(ResponseEntity::ok);
+    }
+
+//    熱門紀錄片
+    @GetMapping("/popular-documentary")
+    public Mono<ResponseEntity<JsonNode>> getPopularComedy(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularDocumentary(page).map(ResponseEntity::ok);
+    }
+
+//    熱門兒童節目
+    @GetMapping("/popular-children")
+    public Mono<ResponseEntity<JsonNode>> getPopularChildren(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularChildren(page).map(ResponseEntity::ok);
+    }
+
+//    熱門脫口秀
+    @GetMapping("/popular-talkShow")
+    public Mono<ResponseEntity<JsonNode>> getPopularTalkShow(
+            @RequestParam(value = "page", defaultValue = "1") Integer page) {
+        return tmdbDiscoverService.getPopularTalkShow(page).map(ResponseEntity::ok);
     }
 
 //    熱門人物
@@ -112,5 +140,13 @@ public class TmdbController {
             @RequestParam(value = "page", defaultValue = "1") Integer page
     ) {
         return tmdbDiscoverService.getNowPlayingMovies(page).map(ResponseEntity::ok);
+    }
+
+//    好評推薦
+    @GetMapping("/top-rated")
+    public Mono<ResponseEntity<JsonNode>> getTopRatedMovies(
+            @RequestParam(value = "page", defaultValue = "1") Integer page
+    ) {
+        return tmdbDiscoverService.getTopRatedMovies(page).map(ResponseEntity::ok);
     }
 }

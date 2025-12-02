@@ -126,7 +126,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
                 .map(tmdbResponseTransformerService::transformSearchResponse);
     }
 
-//    熱門電視劇
+//    熱門電視節目
     @Override
     public Mono<JsonNode> getPopularTv(Integer page) {
         return fetchListFromTmdb(new String[]{"tv", "popular"}, Map.of("page", String.valueOf(page)));
@@ -138,8 +138,15 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         Map<String, String> params = new HashMap<>();
         params.put("page", String.valueOf(page));
         params.put("with_genres", "16");
-        params.put("sort_by", "popularity.desc");
-        params.put("with_original_language", "ja|en|zh");
+        return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
+    }
+
+//    熱門電視劇
+    @Override
+    public Mono<JsonNode> getPopularDrama(Integer page) {
+        Map<String, String> params = new HashMap<>();
+        params.put("page", String.valueOf(page));
+        params.put("with_genres", "18");
         return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
     }
 
@@ -149,12 +156,37 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         Map<String, String> params = new HashMap<>();
         params.put("page", String.valueOf(page));
         params.put("with_genres", "10764");
-        params.put("sort_by", "popularity.desc");
-        params.put("with_original_language", "zh|ko|ja");
         return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
     }
 
-//    即將上映
+//    熱門紀錄片
+    @Override
+    public Mono<JsonNode> getPopularDocumentary(Integer page) {
+        Map<String, String> params = new HashMap<>();
+        params.put("page", String.valueOf(page));
+        params.put("with_genres", "99");
+        return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
+    }
+
+//    熱門兒童節目
+    @Override
+    public Mono<JsonNode> getPopularChildren(Integer page) {
+        Map<String, String> params = new HashMap<>();
+        params.put("page", String.valueOf(page));
+        params.put("with_genres", "10762");
+        return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
+    }
+
+//    熱門脫口秀
+    @Override
+    public Mono<JsonNode> getPopularTalkShow(Integer page) {
+        Map<String, String> params = new HashMap<>();
+        params.put("page", String.valueOf(page));
+        params.put("with_genres", "10767");
+        return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
+    }
+
+    //    即將上映
     @Override
     public Mono<JsonNode> getUpcomingMovies(Integer page) {
             return fetchListFromTmdb(new String[]{"movie", "upcoming"}, Map.of("page", String.valueOf(page), "region", "TW"));
@@ -166,7 +198,12 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         return fetchListFromTmdb(new String[]{"movie", "now_playing"}, Map.of("page", String.valueOf(page), "region", "TW"));
     }
 
-//    熱門人物
+//    好評推薦
+    public Mono<JsonNode> getTopRatedMovies(Integer page) {
+        return fetchListFromTmdb(new String[]{"movie", "top_rated"}, Map.of("page", String.valueOf(page), "region", "TW"));
+    }
+
+    //    熱門人物
     @Override
     public Mono<JsonNode> getPopularPerson(Integer page) {
         return fetchListFromTmdb(new String[]{"person", "popular"}, Map.of("page", String.valueOf(page)));
