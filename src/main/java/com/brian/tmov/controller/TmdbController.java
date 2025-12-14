@@ -1,6 +1,7 @@
 package com.brian.tmov.controller;
 
 import com.brian.tmov.dto.TmdbSearchQuery;
+import com.brian.tmov.service.TmdbDetailService;
 import com.brian.tmov.service.TmdbDiscoverService;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +24,9 @@ public class TmdbController {
 
     @Autowired
     private TmdbDiscoverService tmdbDiscoverService;
+
+    @Autowired
+    private TmdbDetailService tmdbDetailService;
 
 //    搜尋
     @GetMapping("/search")
@@ -148,5 +152,23 @@ public class TmdbController {
             @RequestParam(value = "page", defaultValue = "1") Integer page
     ) {
         return tmdbDiscoverService.getTopRatedMovies(page).map(ResponseEntity::ok);
+    }
+
+//    電影詳情
+    @GetMapping("/movie/{id}")
+    public Mono<ResponseEntity<JsonNode>> getMovieDetail(@PathVariable Long id) {
+        return tmdbDetailService.getMovieDetail(id).map(ResponseEntity::ok);
+    }
+
+//    電視節目詳情
+    @GetMapping("/tv/{id}")
+    public Mono<ResponseEntity<JsonNode>> getTvDetail(@PathVariable Long id) {
+        return tmdbDetailService.getTvDetail(id).map(ResponseEntity::ok);
+    }
+
+//    人物詳情
+    @GetMapping("/person/{id}")
+    public Mono<ResponseEntity<JsonNode>> getPersonDetail(@PathVariable Long id) {
+        return tmdbDetailService.getPersonDetail(id).map(ResponseEntity::ok);
     }
 }
