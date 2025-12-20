@@ -5,6 +5,7 @@ import com.brian.tmov.exception.DownstreamException;
 import com.brian.tmov.service.TmdbDetailService;
 import com.brian.tmov.service.TmdbGetImageService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +35,13 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
 //    電影詳情
     @Override
     public Mono<JsonNode> getMovieDetail(long movieId) {
-        return fetchDetail("movie", movieId, "credits,videos,recommendations,images");
+        return fetchDetail("movie", movieId, "credits,videos,recommendations,images,release_dates,watch/providers,external_ids");
     }
 
 //    電視節目詳情
     @Override
     public Mono<JsonNode> getTvDetail(long tvId) {
-        return fetchDetail("tv", tvId, "credits,videos,recommendations,images");
+        return fetchDetail("tv", tvId, "credits,videos,recommendations,images,content_ratings,watch/providers,external_ids");
     }
 
 //    人物詳情
@@ -89,21 +90,17 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         if (rootNode == null || !rootNode.isObject()) return rootNode;
         ObjectNode root = (ObjectNode) rootNode;
 
-        // 處理根節點圖片 (海報、背景、頭像)
+        // 1. 圖片處理 (基本)
         processImageField(root, "poster_path", "full_poster_url", "poster");
         processImageField(root, "backdrop_path", "full_backdrop_url", "backdrop");
         processImageField(root, "profile_path", "full_profile_url", "profile");
 
-        // 處理演員列表 (credits.cast)
+        // 2. 圖片處理 (關聯列表)
         if (root.has("credits") && root.get("credits").has("cast")) {
             for (JsonNode cast : root.get("credits").get("cast")) {
-                if (cast.isObject()) {
-                    processImageField((ObjectNode) cast, "profile_path", "full_profile_url", "profile");
-                }
+                if (cast.isObject()) processImageField((ObjectNode) cast, "profile_path", "full_profile_url", "profile");
             }
         }
-
-        // 處理推薦列表 (recommendations.results)
         if (root.has("recommendations") && root.get("recommendations").has("results")) {
             for (JsonNode rec : root.get("recommendations").get("results")) {
                 if (rec.isObject()) {
@@ -112,8 +109,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
                 }
             }
         }
-
-        // 處理人物的出演作品 (combined_credits.cast)
         if ("person".equals(type) && root.has("combined_credits") && root.get("combined_credits").has("cast")) {
             for (JsonNode credit : root.get("combined_credits").get("cast")) {
                 if (credit.isObject()) {
@@ -123,7 +118,114 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
             }
         }
 
+        // 提取並簡化「分級資訊」
+        String rating = "N/A";
+        if ("movie".equals(type)) {
+            rating = extractMovieCertification(root.path("release_dates"));
+        } else if ("tv".equals(type)) {
+            rating = extractTvContentRating(root.path("content_ratings"));
+        }
+        root.put("custom_rating", rating); // 放入根目錄方便前端取用
+
+        // 提取並簡化「串流平台資訊」
+        JsonNode watchProviders = extractWatchProviders(root.path("watch/providers"));
+        if (watchProviders != null) {
+            root.set("custom_watch_providers", watchProviders);
+        }
+
         return rootNode;
+    }
+
+    /**
+     * 提取電影分級 (優先找 TW，其次找 US)
+     */
+    private String extractMovieCertification(JsonNode releaseDatesNode) {
+        JsonNode results = releaseDatesNode.path("results");
+        String usRating = null;
+
+        if (results.isArray()) {
+            for (JsonNode region : results) {
+                String iso = region.path("iso_3166_1").asText("");
+
+                // 如果是台灣，直接找第一個有分級的資料
+                if ("TW".equals(iso)) {
+                    for (JsonNode release : region.path("release_dates")) {
+                        String cert = release.path("certification").asText("");
+                        if (!cert.isBlank()) return cert;
+                    }
+                }
+
+                // 存起來當備案
+                if ("US".equals(iso) && usRating == null) {
+                    for (JsonNode release : region.path("release_dates")) {
+                        String cert = release.path("certification").asText("");
+                        if (!cert.isBlank()) {
+                            usRating = cert;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return usRating != null ? usRating : "N/A";
+    }
+
+    /**
+     * 提取 TV 分級 (優先找 TW，其次找 US)
+     */
+    private String extractTvContentRating(JsonNode contentRatingsNode) {
+        JsonNode results = contentRatingsNode.path("results");
+        String usRating = null;
+
+        if (results.isArray()) {
+            for (JsonNode region : results) {
+                String iso = region.path("iso_3166_1").asText("");
+                String rating = region.path("rating").asText("");
+
+                if ("TW".equals(iso) && !rating.isBlank()) {
+                    return rating;
+                }
+                if ("US".equals(iso) && !rating.isBlank() && usRating == null) {
+                    usRating = rating;
+                }
+            }
+        }
+        return usRating != null ? usRating : "N/A";
+    }
+
+    /**
+     * 提取 TW 地區的串流平台，並將 Logo 轉為完整網址
+     */
+    private JsonNode extractWatchProviders(JsonNode providersNode) {
+        JsonNode twProviders = providersNode.path("results").path("TW");
+
+        if (twProviders.isMissingNode()) {
+            return null;
+        }
+
+        // 我們需要處理 flatrate (訂閱), rent (租借), buy (購買) 裡面的 logo_path
+        ObjectNode result = (ObjectNode) twProviders.deepCopy();
+
+        processProviderList(result, "flatrate");
+        processProviderList(result, "rent");
+        processProviderList(result, "buy");
+
+        return result;
+    }
+
+    private void processProviderList(ObjectNode regionNode, String listKey) {
+        if (regionNode.has(listKey) && regionNode.get(listKey).isArray()) {
+            ArrayNode list = (ArrayNode) regionNode.get(listKey);
+            for (JsonNode item : list) {
+                if (item.isObject()) {
+                    // 將 logo_path 轉為 full_logo_url
+                    String logoPath = item.path("logo_path").asText(null);
+                    // 這裡使用 w92 (小圖) 或 original
+                    String fullLogoUrl = tmdbGetImageService.getFullImageUrl(logoPath, "original");
+                    ((ObjectNode) item).put("full_logo_url", fullLogoUrl);
+                }
+            }
+        }
     }
 
     /**
