@@ -47,7 +47,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
 //    人物詳情
     @Override
     public Mono<JsonNode> getPersonDetail(long personId) {
-        return fetchDetail("person", personId, "combined_credits,images");
+        return fetchDetail("person", personId, "combined_credits,images,translations");
     }
 
     // ===================================================================================
@@ -57,6 +57,13 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
     private Mono<JsonNode> fetchDetail(String type, long id, String appendToResponse) {
         Map<String, String> qp = new HashMap<>();
         qp.put("language", defaultLanguage);
+
+        if (appendToResponse != null) {
+            qp.put("append_to_response", appendToResponse);
+            if (appendToResponse.contains("videos")) {
+                qp.put("include_video_language", "zh,en");
+            }
+        }
 
         // 關鍵參數：讓 TMDB 一次吐回所有關聯資料
         if (appendToResponse != null) {
@@ -89,6 +96,17 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
     private JsonNode transformDetailJson(JsonNode rootNode, String type) {
         if (rootNode == null || !rootNode.isObject()) return rootNode;
         ObjectNode root = (ObjectNode) rootNode;
+
+        if ("person".equals(type)) {
+            String bio = root.path("biography").asText("");
+            if (bio.isBlank()) {
+                String enBio = findEnglishBiography(root.path("translations"));
+                if (enBio != null && !enBio.isBlank()) {
+                    // 將找到的英文傳記填回去，前端無感
+                    root.put("biography", enBio);
+                }
+            }
+        }
 
         // 1. 圖片處理 (基本)
         processImageField(root, "poster_path", "full_poster_url", "poster");
@@ -135,6 +153,23 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
 
         return rootNode;
     }
+
+    /**
+     * 從翻譯節點中尋找英文傳記
+     */
+    private String findEnglishBiography(JsonNode translationsNode) {
+        JsonNode list = translationsNode.path("translations");
+        if (list.isArray()) {
+            for (JsonNode t : list) {
+                // 尋找語言代碼為 "en" 的項目
+                if ("en".equals(t.path("iso_639_1").asText(""))) {
+                    return t.path("data").path("biography").asText(null);
+                }
+            }
+        }
+        return null;
+    }
+
 
     /**
      * 提取電影分級 (優先找 TW，其次找 US)
