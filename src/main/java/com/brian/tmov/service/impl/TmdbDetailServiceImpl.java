@@ -47,7 +47,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
 //    人物詳情
     @Override
     public Mono<JsonNode> getPersonDetail(long personId) {
-        return fetchDetail("person", personId, "combined_credits,images,translations");
+        return fetchDetail("person", personId, "combined_credits,images,translations,external_ids");
     }
 
     // ===================================================================================
