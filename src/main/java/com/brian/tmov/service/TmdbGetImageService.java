@@ -3,6 +3,11 @@ package com.brian.tmov.service;
 public interface TmdbGetImageService {
 
     /**
+     * 初始化圖片設定 (從 TMDB 取得最新的 base_url)
+     */
+    void init();
+
+    /**
      * 取得一個完整的圖片 URL
      * @return 完整的 URL，例如 "https://image.tmdb.org/t/p/w500/path.jpg"
      */

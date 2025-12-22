@@ -3,23 +3,26 @@ package com.brian.tmov.service.impl;
 import com.brian.tmov.client.TmdbClient;
 import com.brian.tmov.dto.TmdbSearchQuery;
 import com.brian.tmov.enums.TmdbSearchType;
-import com.brian.tmov.exception.DownstreamException;
+import com.brian.tmov.service.TmdbResponseTransformerService;
 import com.brian.tmov.service.TmdbSearchService;
 import com.fasterxml.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class TmdbSearchServiceImpl implements TmdbSearchService {
 
     @Autowired
     private TmdbClient tmdbClient;
+
+    @Autowired
+    private TmdbResponseTransformerService tmdbResponseTransformerService;
 
     @Value("${tmdb.default-language:zh-TW}")
     String defaultLanguage;
@@ -28,20 +31,17 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
     String defaultRegion;
 
     @Override
-    public Mono<JsonNode> search(TmdbSearchQuery query) {
+    public JsonNode search(TmdbSearchQuery query) {
+        log.info("收到搜尋請求: 關鍵字=[{}], 類型=[{}], 頁數=[{}]", query.q(), query.type(), query.page());
+
         final TmdbSearchType t = TmdbSearchType.from(query.typeOrDefault());
 
         Map<String, String> qp = getStringMap(query, t);
 
-        return tmdbClient.get(new String[]{"search", t.value()}, qp)
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    String errorBody = e.getResponseBodyAsString();
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗: " + e.getStatusCode() + " " + errorBody, e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException || ex instanceof IllegalArgumentException), e -> {
-                    // 捕獲其他 tmdbClient 可能的錯誤 (例如連線逾時)
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤: " + e.getMessage(), e));
-                });
+        JsonNode result = tmdbClient.get(new String[]{"search", t.value()}, qp);
+
+        // 加工圖片網址
+        return tmdbResponseTransformerService.transformSearchResponse(result);
     }
 
     private Map<String, String> getStringMap(TmdbSearchQuery query, TmdbSearchType t) {

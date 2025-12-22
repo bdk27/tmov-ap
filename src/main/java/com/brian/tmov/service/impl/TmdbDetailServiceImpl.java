@@ -1,27 +1,22 @@
 package com.brian.tmov.service.impl;
 
 import com.brian.tmov.client.TmdbClient;
-import com.brian.tmov.exception.DownstreamException;
 import com.brian.tmov.service.TmdbDetailService;
 import com.brian.tmov.service.TmdbGetImageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class TmdbDetailServiceImpl implements TmdbDetailService {
-
-    private static final Logger log = LoggerFactory.getLogger(TmdbDetailServiceImpl.class);
 
     @Autowired
     private TmdbClient tmdbClient;
@@ -34,19 +29,19 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
 
 //    電影詳情
     @Override
-    public Mono<JsonNode> getMovieDetail(long movieId) {
+    public JsonNode getMovieDetail(long movieId) {
         return fetchDetail("movie", movieId, "credits,videos,recommendations,images,release_dates,watch/providers,external_ids");
     }
 
 //    電視節目詳情
     @Override
-    public Mono<JsonNode> getTvDetail(long tvId) {
+    public JsonNode getTvDetail(long tvId) {
         return fetchDetail("tv", tvId, "credits,videos,recommendations,images,content_ratings,watch/providers,external_ids");
     }
 
 //    人物詳情
     @Override
-    public Mono<JsonNode> getPersonDetail(long personId) {
+    public JsonNode getPersonDetail(long personId) {
         return fetchDetail("person", personId, "combined_credits,images,translations,external_ids");
     }
 
@@ -54,7 +49,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
     // 通用輔助方法
     // ===================================================================================
 
-    private Mono<JsonNode> fetchDetail(String type, long id, String appendToResponse) {
+    private JsonNode fetchDetail(String type, long id, String appendToResponse) {
         Map<String, String> qp = new HashMap<>();
         qp.put("language", defaultLanguage);
 
@@ -74,19 +69,9 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
             }
         }
 
-        return tmdbClient.get(new String[]{type, String.valueOf(id)}, qp)
-                .map(json -> transformDetailJson(json, type)) // 加工圖片網址
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    if (e.getStatusCode().value() == 404) {
-                        return Mono.error(new DownstreamException("找不到該項目 (404): " + type + "/" + id, e));
-                    }
-                    log.error("TMDB 詳情請求失敗 {}/{}: {}", type, id, e.getMessage());
-                    return Mono.error(new DownstreamException("TMDB API 請求失敗", e));
-                })
-                .onErrorResume(ex -> !(ex instanceof DownstreamException), e -> {
-                    log.error("詳情服務發生未知錯誤", e);
-                    return Mono.error(new DownstreamException("TMDB 客戶端發生未知錯誤", e));
-                });
+        JsonNode json = tmdbClient.get(new String[]{type, String.valueOf(id)}, qp);
+
+        return transformDetailJson(json, type);
     }
 
     /**
@@ -97,12 +82,12 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         if (rootNode == null || !rootNode.isObject()) return rootNode;
         ObjectNode root = (ObjectNode) rootNode;
 
+        // 處理人物傳記 (英文 fallback)
         if ("person".equals(type)) {
             String bio = root.path("biography").asText("");
             if (bio.isBlank()) {
                 String enBio = findEnglishBiography(root.path("translations"));
                 if (enBio != null && !enBio.isBlank()) {
-                    // 將找到的英文傳記填回去，前端無感
                     root.put("biography", enBio);
                 }
             }
@@ -143,7 +128,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         } else if ("tv".equals(type)) {
             rating = extractTvContentRating(root.path("content_ratings"));
         }
-        root.put("custom_rating", rating); // 放入根目錄方便前端取用
+        root.put("custom_rating", rating);
 
         // 提取並簡化「串流平台資訊」
         JsonNode watchProviders = extractWatchProviders(root.path("watch/providers"));
@@ -161,7 +146,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         JsonNode list = translationsNode.path("translations");
         if (list.isArray()) {
             for (JsonNode t : list) {
-                // 尋找語言代碼為 "en" 的項目
                 if ("en".equals(t.path("iso_639_1").asText(""))) {
                     return t.path("data").path("biography").asText(null);
                 }
@@ -169,7 +153,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         }
         return null;
     }
-
 
     /**
      * 提取電影分級 (優先找 TW，其次找 US)
@@ -182,7 +165,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
             for (JsonNode region : results) {
                 String iso = region.path("iso_3166_1").asText("");
 
-                // 如果是台灣，直接找第一個有分級的資料
                 if ("TW".equals(iso)) {
                     for (JsonNode release : region.path("release_dates")) {
                         String cert = release.path("certification").asText("");
@@ -190,7 +172,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
                     }
                 }
 
-                // 存起來當備案
                 if ("US".equals(iso) && usRating == null) {
                     for (JsonNode release : region.path("release_dates")) {
                         String cert = release.path("certification").asText("");
@@ -238,7 +219,6 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
             return null;
         }
 
-        // 我們需要處理 flatrate (訂閱), rent (租借), buy (購買) 裡面的 logo_path
         ObjectNode result = (ObjectNode) twProviders.deepCopy();
 
         processProviderList(result, "flatrate");
@@ -253,9 +233,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
             ArrayNode list = (ArrayNode) regionNode.get(listKey);
             for (JsonNode item : list) {
                 if (item.isObject()) {
-                    // 將 logo_path 轉為 full_logo_url
                     String logoPath = item.path("logo_path").asText(null);
-                    // 這裡使用 w92 (小圖) 或 original
                     String fullLogoUrl = tmdbGetImageService.getFullImageUrl(logoPath, "original");
                     ((ObjectNode) item).put("full_logo_url", fullLogoUrl);
                 }

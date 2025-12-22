@@ -13,33 +13,48 @@ public class TmdbResponseTransformerServiceImpl implements TmdbResponseTransform
     @Autowired
     private TmdbGetImageService tmdbGetImageService;
 
+    private static final int MAX_TMDB_PAGES = 500;
+
     @Override
     public JsonNode transformSearchResponse(JsonNode responseNode) {
-        // 檢查 "results" 欄位是否存在並且是一個陣列
-        if (responseNode == null || !responseNode.has("results") || !responseNode.get("results").isArray()) {
-            return responseNode; // 如果沒有 results 陣列 (例如 /configuration)，直接回傳
+        // 檢查基本結構
+        if (responseNode == null) {
+            return null;
+        }
+
+        // 限制 total_pages 上限
+        // 防止前端分頁元件產生第 501 頁的按鈕，避免使用者點擊後導致 502 錯誤
+        if (responseNode.has("total_pages") && responseNode instanceof ObjectNode) {
+            int totalPages = responseNode.get("total_pages").asInt();
+            if (totalPages > MAX_TMDB_PAGES) {
+                ((ObjectNode) responseNode).put("total_pages", MAX_TMDB_PAGES);
+            }
+        }
+
+        // 檢查 results 陣列
+        if (!responseNode.has("results") || !responseNode.get("results").isArray()) {
+            return responseNode;
         }
 
         // 取得 "results" 陣列
         JsonNode results = responseNode.get("results");
 
-        // 遍歷 (Loop) 陣列中的每一個項目
+        // 2. 遍歷 (Loop) 陣列中的每一個項目並加工圖片
         for (JsonNode item : results) {
-            // 我們需要將 JsonNode (不可變) 轉換為 ObjectNode (可變) 才能新增欄位
             if (item.isObject()) {
                 ObjectNode objectItem = (ObjectNode) item;
 
-                // 1. 取得 poster_path 並轉換
+                // 處理 poster_path
                 String posterPath = objectItem.path("poster_path").asText(null);
                 String fullPosterUrl = tmdbGetImageService.getDefaultPosterUrl(posterPath);
                 objectItem.put("full_poster_url", fullPosterUrl);
 
-                // 2. 取得 backdrop_path 並轉換
+                // 處理 backdrop_path
                 String backdropPath = objectItem.path("backdrop_path").asText(null);
                 String fullBackdropUrl = tmdbGetImageService.getDefaultBackdropUrl(backdropPath);
                 objectItem.put("full_backdrop_url", fullBackdropUrl);
 
-                // 3. (可選) 取得 profile_path 並轉換 (用於 "person" 類型的結果)
+                // 處理 profile_path (用於 "person" 類型的結果)
                 String profilePath = objectItem.path("profile_path").asText(null);
                 String fullProfileUrl = tmdbGetImageService.getDefaultProfileUrl(profilePath);
                 objectItem.put("full_profile_url", fullProfileUrl);
