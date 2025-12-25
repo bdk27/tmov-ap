@@ -1,7 +1,7 @@
 package com.brian.tmov.service.impl;
 
 import com.brian.tmov.client.TmdbClient;
-import com.brian.tmov.dto.TmdbSearchQuery;
+import com.brian.tmov.dto.request.TmdbSearchQueryRequest;
 import com.brian.tmov.enums.TmdbSearchType;
 import com.brian.tmov.service.TmdbResponseTransformerService;
 import com.brian.tmov.service.TmdbSearchService;
@@ -31,9 +31,7 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
     String defaultRegion;
 
     @Override
-    public JsonNode search(TmdbSearchQuery query) {
-        log.info("收到搜尋請求: 關鍵字=[{}], 類型=[{}], 頁數=[{}]", query.q(), query.type(), query.page());
-
+    public JsonNode search(TmdbSearchQueryRequest query) {
         final TmdbSearchType t = TmdbSearchType.from(query.typeOrDefault());
 
         Map<String, String> qp = getStringMap(query, t);
@@ -44,7 +42,7 @@ public class TmdbSearchServiceImpl implements TmdbSearchService {
         return tmdbResponseTransformerService.transformSearchResponse(result);
     }
 
-    private Map<String, String> getStringMap(TmdbSearchQuery query, TmdbSearchType t) {
+    private Map<String, String> getStringMap(TmdbSearchQueryRequest query, TmdbSearchType t) {
         Map<String, String> qp = new LinkedHashMap<>();
         qp.put("query", query.q());
         qp.put("page", String.valueOf(query.pageOrDefault()));

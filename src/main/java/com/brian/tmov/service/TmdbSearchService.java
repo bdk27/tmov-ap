@@ -1,9 +1,9 @@
 package com.brian.tmov.service;
 
-import com.brian.tmov.dto.TmdbSearchQuery;
+import com.brian.tmov.dto.request.TmdbSearchQueryRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public interface TmdbSearchService {
 
-    JsonNode search(TmdbSearchQuery query);
+    JsonNode search(TmdbSearchQueryRequest query);
 }

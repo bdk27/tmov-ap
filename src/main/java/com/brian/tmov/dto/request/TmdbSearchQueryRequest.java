@@ -1,9 +1,9 @@
-package com.brian.tmov.dto;
+package com.brian.tmov.dto.request;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
-public record TmdbSearchQuery(
+public record TmdbSearchQueryRequest(
         @NotBlank(message = "請輸入關鍵字")
         String q,
 

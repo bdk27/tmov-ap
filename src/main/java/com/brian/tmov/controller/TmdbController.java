@@ -1,6 +1,6 @@
 package com.brian.tmov.controller;
 
-import com.brian.tmov.dto.TmdbSearchQuery;
+import com.brian.tmov.dto.request.TmdbSearchQueryRequest;
 import com.brian.tmov.service.TmdbDetailService;
 import com.brian.tmov.service.TmdbDiscoverService;
 import com.brian.tmov.service.TmdbSearchService;
@@ -29,7 +29,7 @@ public class TmdbController {
 
 //    搜尋
     @GetMapping("/search")
-    public ResponseEntity<JsonNode> search(@Valid TmdbSearchQuery query) {
+    public ResponseEntity<JsonNode> search(@Valid TmdbSearchQueryRequest query) {
         return ResponseEntity.ok(tmdbSearchService.search(query));
     }
 
