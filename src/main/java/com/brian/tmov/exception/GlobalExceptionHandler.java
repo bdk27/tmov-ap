@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 @Order(-2)
 public class GlobalExceptionHandler {
 
+    // 處理參數驗證錯誤 (@Valid)
     @ExceptionHandler(BindException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(BindException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
@@ -34,6 +35,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    // 處理業務邏輯錯誤 (例如：帳號已存在、找不到帳號)
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponse error = new ErrorResponse(
@@ -45,6 +47,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    // 處理 TMDB 連線錯誤
     @ExceptionHandler(DownstreamException.class)
     public ResponseEntity<ErrorResponse> handleDownstreamApiException(DownstreamException ex) {
         ErrorResponse error = new ErrorResponse(
@@ -56,6 +59,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
     }
 
+    // 處理密碼錯誤
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException e) {
         Map<String, String> response = new HashMap<>();
@@ -63,6 +67,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
+    // 其他未預期錯誤
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);

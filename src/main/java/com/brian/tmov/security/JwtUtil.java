@@ -21,8 +21,11 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration}")
-    private long expirationTime;
+    @Value("${jwt.expiration.normal}")
+    private long normalExpiration;
+
+    @Value("${jwt.expiration.rememberMe}")
+    private long rememberMeExpiration;
 
     private Key key;
 
@@ -31,10 +34,18 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    // 產生 Token
-    public String generateToken(String username, String role) {
+    /**
+     * 產生 Token
+     * @param email 使用者 Email
+     * @param role 角色
+     * @param rememberMe 是否記住我
+     */
+    public String generateToken(String username, String role, boolean rememberMe) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
+
+        long expirationTime = rememberMe ? rememberMeExpiration : normalExpiration;
+
         return Jwts.builder()
                 .claims(claims)
                 .subject(username)

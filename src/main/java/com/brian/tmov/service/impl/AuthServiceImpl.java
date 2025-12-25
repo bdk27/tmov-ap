@@ -36,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private AuthenticationManager authenticationManager;
 
     @Transactional
+    @Override
     public AuthResponse register(AuthRequest request) {
         // 使用 email 作為唯一標識
         if (memberRepository.existsByEmail(request.email())) {
@@ -57,7 +58,8 @@ public class AuthServiceImpl implements AuthService {
         // 註冊後直接發 Token
         String roleNames = member.getRoles().stream()
                 .map(RoleEntity::getName).collect(Collectors.joining(","));
-        String token = jwtUtil.generateToken(member.getEmail(), roleNames);
+
+        String token = jwtUtil.generateToken(member.getEmail(), roleNames, request.isRememberMe());
 
         return new AuthResponse(
                 token,
@@ -68,6 +70,7 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
+    @Override
     public AuthResponse login(AuthRequest request) {
         // 驗證 email
         MemberEntity member = memberRepository.findByEmail(request.email())
@@ -83,7 +86,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(RoleEntity::getName).collect(Collectors.joining(","));
 
         // 產生 Token
-        String token = jwtUtil.generateToken(member.getEmail(), roleNames);
+        String token = jwtUtil.generateToken(member.getEmail(), roleNames, request.isRememberMe());
 
         return new AuthResponse(
                 token,
