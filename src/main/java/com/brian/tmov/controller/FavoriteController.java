@@ -2,12 +2,14 @@ package com.brian.tmov.controller;
 
 import com.brian.tmov.dto.request.FavoriteRequest;
 import com.brian.tmov.service.FavoriteService;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -16,6 +18,15 @@ public class FavoriteController {
 
     @Autowired
     private FavoriteService favoriteService;
+
+//    取得收藏
+    @GetMapping
+    public ResponseEntity<List<JsonNode>> getMyFavorites(Principal principal) {
+        if (principal == null) return ResponseEntity.status(401).build();
+
+        List<JsonNode> favorites = favoriteService.getFavorites(principal.getName());
+        return ResponseEntity.ok(favorites);
+    }
 
 //    加入收藏
     @PostMapping
