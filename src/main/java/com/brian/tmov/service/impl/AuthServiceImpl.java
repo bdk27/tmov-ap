@@ -37,16 +37,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     @Override
-    public AuthResponse register(AuthRequest request) {
+    public void register(AuthRequest request) {
         // 使用 email 作為唯一標識
         if (memberRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("此 Email 已被註冊");
         }
 
         MemberEntity member = new MemberEntity();
+
         member.setEmail(request.email());
-        member.setDisplayName(request.email().split("@")[0]); // 預設顯示名稱
         member.setPasswordHash(passwordEncoder.encode(request.password()));
+
+        String defaultName = request.email().split("@")[0];
+        member.setDisplayName(defaultName);
+        member.setPictureUrl("https://api.dicebear.com/7.x/initials/svg?seed=" + defaultName);
 
         // 設定預設角色
         RoleEntity userRole = roleRepository.findByName("ROLE_USER")
@@ -54,20 +58,6 @@ public class AuthServiceImpl implements AuthService {
         member.addRole(userRole);
 
         memberRepository.save(member);
-
-        // 註冊後直接發 Token
-        String roleNames = member.getRoles().stream()
-                .map(RoleEntity::getName).collect(Collectors.joining(","));
-
-        String token = jwtUtil.generateToken(member.getEmail(), roleNames, request.isRememberMe());
-
-        return new AuthResponse(
-                token,
-                member.getEmail(),
-                member.getDisplayName(),
-                member.getPictureUrl(),
-                roleNames
-        );
     }
 
     @Override
@@ -93,7 +83,26 @@ public class AuthServiceImpl implements AuthService {
                 member.getEmail(),
                 member.getDisplayName(),
                 member.getPictureUrl(),
-                roleNames
+                roleNames,
+                member.getCreatedAt()
+        );
+    }
+
+    @Override
+    public AuthResponse getMe(String email) {
+        MemberEntity member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("找不到會員資料"));
+
+        String roleNames = member.getRoles().stream()
+                .map(RoleEntity::getName).collect(Collectors.joining(","));
+
+        return new AuthResponse(
+                null,
+                member.getEmail(),
+                member.getDisplayName(),
+                member.getPictureUrl(),
+                roleNames,
+                member.getCreatedAt()
         );
     }
 }

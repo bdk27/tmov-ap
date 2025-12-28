@@ -5,7 +5,9 @@ import com.brian.tmov.dto.response.AuthResponse;
 
 public interface AuthService {
 
-    AuthResponse register(AuthRequest request);
+    void register(AuthRequest request);
 
     AuthResponse login(AuthRequest request);
+
+    AuthResponse getMe(String email);
 }
