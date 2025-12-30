@@ -5,6 +5,7 @@ import com.brian.tmov.dao.entity.RoleEntity;
 import com.brian.tmov.dao.repository.MemberRepository;
 import com.brian.tmov.dao.repository.RoleRepository;
 import com.brian.tmov.dto.request.AuthRequest;
+import com.brian.tmov.dto.request.UpdateProfileRequest;
 import com.brian.tmov.dto.response.AuthResponse;
 import com.brian.tmov.security.JwtUtil;
 import com.brian.tmov.service.AuthService;
@@ -93,6 +94,53 @@ public class AuthServiceImpl implements AuthService {
         MemberEntity member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("找不到會員資料"));
 
+        String roleNames = member.getRoles().stream()
+                .map(RoleEntity::getName).collect(Collectors.joining(","));
+
+        return new AuthResponse(
+                null,
+                member.getEmail(),
+                member.getDisplayName(),
+                member.getPictureUrl(),
+                roleNames,
+                member.getCreatedAt()
+        );
+    }
+
+    @Transactional
+    @Override
+    public AuthResponse updateProfile(String email, UpdateProfileRequest request) {
+        MemberEntity member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("找不到會員資料"));
+
+        // 更新暱稱
+        if (request.displayName() != null && !request.displayName().isBlank()) {
+            member.setDisplayName(request.displayName());
+        }
+
+        // 更新頭像
+        if (request.pictureUrl() != null && !request.pictureUrl().isBlank()) {
+            member.setPictureUrl(request.pictureUrl());
+        }
+
+        // 更新密碼
+        if (request.newPassword() != null && !request.newPassword().isBlank()) {
+            // 檢查是否提供舊密碼
+            if (request.oldPassword() == null || request.oldPassword().isBlank()) {
+                throw new IllegalArgumentException("修改密碼時，必須提供舊密碼");
+            }
+            // 驗證舊密碼是否正確
+            if (!passwordEncoder.matches(request.oldPassword(), member.getPasswordHash())) {
+                throw new BadCredentialsException("舊密碼不正確，無法修改密碼");
+            }
+            // 設定新密碼
+            member.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        }
+
+        // 儲存更新
+        memberRepository.save(member);
+
+        // 回傳更新後的資訊
         String roleNames = member.getRoles().stream()
                 .map(RoleEntity::getName).collect(Collectors.joining(","));
 

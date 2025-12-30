@@ -1,6 +1,7 @@
 package com.brian.tmov.controller;
 
 import com.brian.tmov.dto.request.AuthRequest;
+import com.brian.tmov.dto.request.UpdateProfileRequest;
 import com.brian.tmov.dto.response.AuthResponse;
 import com.brian.tmov.service.AuthService;
 import jakarta.validation.Valid;
@@ -40,5 +41,18 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(authService.getMe(principal.getName()));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<AuthResponse> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            Principal principal
+    ) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        AuthResponse response = authService.updateProfile(principal.getName(), request);
+        return ResponseEntity.ok(response);
     }
 }
