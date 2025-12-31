@@ -36,6 +36,10 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    private static final String DEFAULT_AVATAR_PREFIX = "https://api.dicebear.com";
+
+    private static final String DEFAULT_AVATAR_STYLE = "initials";
+
     @Transactional
     @Override
     public void register(AuthRequest request) {
@@ -51,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
 
         String defaultName = request.email().split("@")[0];
         member.setDisplayName(defaultName);
-        member.setPictureUrl("https://api.dicebear.com/7.x/initials/svg?seed=" + defaultName);
+        member.setPictureUrl(generateDefaultAvatarUrl(defaultName));
 
         // 設定預設角色
         RoleEntity userRole = roleRepository.findByName("ROLE_USER")
@@ -85,6 +89,10 @@ public class AuthServiceImpl implements AuthService {
                 member.getDisplayName(),
                 member.getPictureUrl(),
                 roleNames,
+                member.getGender(),
+                member.getBirthDate(),
+                member.getPhone(),
+                member.getAddress(),
                 member.getCreatedAt()
         );
     }
@@ -103,6 +111,10 @@ public class AuthServiceImpl implements AuthService {
                 member.getDisplayName(),
                 member.getPictureUrl(),
                 roleNames,
+                member.getGender(),
+                member.getBirthDate(),
+                member.getPhone(),
+                member.getAddress(),
                 member.getCreatedAt()
         );
     }
@@ -113,14 +125,18 @@ public class AuthServiceImpl implements AuthService {
         MemberEntity member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("找不到會員資料"));
 
-        // 更新暱稱
-        if (request.displayName() != null && !request.displayName().isBlank()) {
-            member.setDisplayName(request.displayName());
-        }
-
         // 更新頭像
         if (request.pictureUrl() != null && !request.pictureUrl().isBlank()) {
             member.setPictureUrl(request.pictureUrl());
+        }
+
+        // 更新暱稱
+        if (request.displayName() != null && !request.displayName().isEmpty()) {
+            member.setDisplayName(request.displayName());
+
+            if (isDefaultAvatar(member.getPictureUrl())) {
+                member.setPictureUrl(generateDefaultAvatarUrl(request.displayName()));
+            }
         }
 
         // 更新密碼
@@ -137,6 +153,26 @@ public class AuthServiceImpl implements AuthService {
             member.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         }
 
+//        更新性別
+        if (request.gender() != null && !request.gender().isBlank()) {
+            member.setGender(request.gender());
+        }
+
+//        更新出生日期
+        if (request.birthDate() != null) {
+            member.setBirthDate(request.birthDate());
+        }
+
+//        更新手機號碼
+        if (request.phone() != null && !request.phone().isBlank()) {
+            member.setPhone(request.phone());
+        }
+
+//        更新住址
+        if (request.address() != null && !request.address().isBlank()) {
+            member.setAddress(request.address());
+        }
+
         // 儲存更新
         memberRepository.save(member);
 
@@ -150,7 +186,22 @@ public class AuthServiceImpl implements AuthService {
                 member.getDisplayName(),
                 member.getPictureUrl(),
                 roleNames,
+                member.getGender(),
+                member.getBirthDate(),
+                member.getPhone(),
+                member.getAddress(),
                 member.getCreatedAt()
         );
+    }
+
+    // 產生預設頭像網址
+    private String generateDefaultAvatarUrl(String seed) {
+        return DEFAULT_AVATAR_PREFIX + "/7.x/" + DEFAULT_AVATAR_STYLE + "/svg?seed=" + seed;
+    }
+
+    // 判斷是否為預設頭像
+    private boolean isDefaultAvatar(String url) {
+        if (url == null) return false;
+        return url.contains(DEFAULT_AVATAR_PREFIX) && url.contains(DEFAULT_AVATAR_STYLE);
     }
 }

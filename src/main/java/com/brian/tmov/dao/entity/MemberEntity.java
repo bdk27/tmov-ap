@@ -5,6 +5,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,6 +31,18 @@ public class MemberEntity {
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash; // 密碼
+
+    @Column(name = "gender")
+    private String gender;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "address")
+    private String address;
 
     // 多對多關聯：member_has_role
     @ManyToMany(fetch = FetchType.EAGER) // 登入時通常需要立即讀取角色
