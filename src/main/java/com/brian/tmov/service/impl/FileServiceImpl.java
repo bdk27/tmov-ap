@@ -1,6 +1,7 @@
 package com.brian.tmov.service.impl;
 
 import com.brian.tmov.service.FileService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,6 +12,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class FileServiceImpl implements FileService {
 
@@ -26,6 +28,7 @@ public class FileServiceImpl implements FileService {
         }
     }
 
+    @Override
     public String storeFile(MultipartFile file) {
         // 取得原始檔名
         String originalFileName = file.getOriginalFilename();
@@ -47,6 +50,19 @@ public class FileServiceImpl implements FileService {
             return newFileName;
         } catch (IOException ex) {
             throw new RuntimeException("儲存檔案失敗 " + newFileName, ex);
+        }
+    }
+
+    @Override
+    public void deleteFile(String fileName) {
+        if (fileName == null || fileName.isBlank()) return;
+
+        try {
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Files.deleteIfExists(filePath);
+            log.info("已刪除舊檔案: {}", fileName);
+        } catch (IOException ex) {
+            log.warn("刪除舊檔案失敗 (不影響主流程): {}", fileName, ex);
         }
     }
 }

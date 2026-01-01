@@ -9,6 +9,7 @@ import com.brian.tmov.dto.request.UpdateProfileRequest;
 import com.brian.tmov.dto.response.AuthResponse;
 import com.brian.tmov.security.JwtUtil;
 import com.brian.tmov.service.AuthService;
+import com.brian.tmov.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -32,6 +33,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private FileService fileService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -127,6 +131,17 @@ public class AuthServiceImpl implements AuthService {
 
         // 更新頭像
         if (request.pictureUrl() != null && !request.pictureUrl().isBlank()) {
+            String oldUrl = member.getPictureUrl();
+
+            if (oldUrl != null && !isDefaultAvatar(oldUrl)) {
+                try {
+                    String fileName = oldUrl.substring(oldUrl.lastIndexOf("/") + 1);
+                    fileService.deleteFile(fileName);
+                } catch (Exception _) {
+                }
+            }
+
+            // 設定新圖片
             member.setPictureUrl(request.pictureUrl());
         }
 
