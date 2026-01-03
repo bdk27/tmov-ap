@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
 public record TmdbSearchQueryRequest(
+
         @NotBlank(message = "請輸入關鍵字")
         String q,
 

@@ -4,6 +4,7 @@ import com.brian.tmov.enums.MediaType;
 import jakarta.validation.constraints.NotNull;
 
 public record FavoriteRequest(
+
         @NotNull(message = "TMDB ID 不能為空")
         Long tmdbId,
 

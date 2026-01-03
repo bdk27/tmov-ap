@@ -5,10 +5,12 @@ import com.brian.tmov.enums.MediaType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface FavoriteRepository extends JpaRepository<FavoriteEntity, Long> {
 
 //    查詢使用者的所有收藏，依建立時間倒序

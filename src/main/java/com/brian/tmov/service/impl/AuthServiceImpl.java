@@ -5,18 +5,27 @@ import com.brian.tmov.dao.entity.RoleEntity;
 import com.brian.tmov.dao.repository.MemberRepository;
 import com.brian.tmov.dao.repository.RoleRepository;
 import com.brian.tmov.dto.request.AuthRequest;
+import com.brian.tmov.dto.request.GoogleLoginRequest;
 import com.brian.tmov.dto.request.UpdateProfileRequest;
 import com.brian.tmov.dto.response.AuthResponse;
 import com.brian.tmov.security.JwtUtil;
 import com.brian.tmov.service.AuthService;
 import com.brian.tmov.service.FileService;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +49,9 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    @Value("${google.client-id}")
+    private String googleClientId;
+
     private static final String DEFAULT_AVATAR_PREFIX = "https://api.dicebear.com";
 
     private static final String DEFAULT_AVATAR_STYLE = "initials";
@@ -51,22 +63,7 @@ public class AuthServiceImpl implements AuthService {
         if (memberRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("此 Email 已被註冊");
         }
-
-        MemberEntity member = new MemberEntity();
-
-        member.setEmail(request.email());
-        member.setPasswordHash(passwordEncoder.encode(request.password()));
-
-        String defaultName = request.email().split("@")[0];
-        member.setDisplayName(defaultName);
-        member.setPictureUrl(generateDefaultAvatarUrl(defaultName));
-
-        // 設定預設角色
-        RoleEntity userRole = roleRepository.findByName("ROLE_USER")
-                .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_USER")));
-        member.addRole(userRole);
-
-        memberRepository.save(member);
+        createMember(request.email(), request.password(), null, null);
     }
 
     @Override
@@ -99,6 +96,34 @@ public class AuthServiceImpl implements AuthService {
                 member.getAddress(),
                 member.getCreatedAt()
         );
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse googleLogin(GoogleLoginRequest request) {
+        GoogleIdToken.Payload payload = verifyGoogleToken(request.idToken());
+
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String pictureUrl = (String) payload.get("picture");
+
+        // 2. 檢查會員是否存在
+        Optional<MemberEntity> memberOpt = memberRepository.findByEmail(email);
+        MemberEntity member;
+
+        if (memberOpt.isPresent()) {
+            // 會員已存在 -> 直接登入
+            member = memberOpt.get();
+            // (可選) 您可以在這裡更新使用者的頭像或名字，如果需要同步 Google 資料的話
+        } else {
+            // 會員不存在 -> 自動註冊
+            // 生成一個隨機密碼 (因為是 Google 登入，使用者不需要知道這個密碼)
+            String randomPassword = UUID.randomUUID().toString();
+            member = createMember(email, randomPassword, name, pictureUrl);
+        }
+
+        // 3. 發放我們系統的 Token (預設給長效期，方便使用者)
+        return generateAuthResponse(member);
     }
 
     @Override
@@ -218,5 +243,72 @@ public class AuthServiceImpl implements AuthService {
     private boolean isDefaultAvatar(String url) {
         if (url == null) return false;
         return url.contains(DEFAULT_AVATAR_PREFIX) && url.contains(DEFAULT_AVATAR_STYLE);
+    }
+
+    private MemberEntity createMember(String email, String password, String displayName, String pictureUrl) {
+        MemberEntity member = new MemberEntity();
+        member.setEmail(email);
+        member.setPasswordHash(passwordEncoder.encode(password));
+
+        if (displayName == null || displayName.isBlank()) {
+            displayName = email.split("@")[0];
+        }
+        member.setDisplayName(displayName);
+
+        if (pictureUrl != null && !pictureUrl.isBlank()) {
+            member.setPictureUrl(pictureUrl);
+        } else {
+            member.setPictureUrl(generateDefaultAvatarUrl(displayName));
+        }
+
+        RoleEntity userRole = roleRepository.findByName("ROLE_USER")
+                .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_USER")));
+        member.addRole(userRole);
+
+        return memberRepository.save(member);
+    }
+
+    // Google Token 驗證邏輯
+    private GoogleIdToken.Payload verifyGoogleToken(String idTokenString) {
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken != null) {
+                return idToken.getPayload();
+            } else {
+                throw new IllegalArgumentException("Google Token 無效");
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Google 登入失敗: " + e.getMessage());
+        }
+    }
+
+    private AuthResponse generateAuthResponse(MemberEntity member) {
+        String roleNames = getRoleNames(member);
+        String token = jwtUtil.generateToken(member.getEmail(), roleNames, true);
+        return createAuthResponse(member, token, roleNames);
+    }
+
+    private String getRoleNames(MemberEntity member) {
+        return member.getRoles().stream()
+                .map(RoleEntity::getName).collect(Collectors.joining(","));
+    }
+
+    private AuthResponse createAuthResponse(MemberEntity member, String token, String roleNames) {
+        return new AuthResponse(
+                token,
+                member.getEmail(),
+                member.getDisplayName(),
+                member.getPictureUrl(),
+                roleNames,
+                member.getGender(),
+                member.getBirthDate(),
+                member.getPhone(),
+                member.getAddress(),
+                member.getCreatedAt()
+        );
     }
 }

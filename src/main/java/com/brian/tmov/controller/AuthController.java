@@ -1,6 +1,7 @@
 package com.brian.tmov.controller;
 
 import com.brian.tmov.dto.request.AuthRequest;
+import com.brian.tmov.dto.request.GoogleLoginRequest;
 import com.brian.tmov.dto.request.UpdateProfileRequest;
 import com.brian.tmov.dto.response.AuthResponse;
 import com.brian.tmov.service.AuthService;
@@ -32,6 +33,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.googleLogin(request));
     }
 
     @GetMapping("/me")
