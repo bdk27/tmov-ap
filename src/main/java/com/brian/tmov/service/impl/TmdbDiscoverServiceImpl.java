@@ -215,15 +215,14 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
     public JsonNode getNowPlayingMovies(Integer page) {
         LocalDate now = LocalDate.now();
         LocalDate startDate = now.minusDays(45);
-        LocalDate endDate = now.plusDays(7);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         Map<String, String> params = new HashMap<>();
         params.put("page", String.valueOf(page));
         params.put("region", "TW");
         params.put("sort_by", "popularity.desc");
-        params.put("primary_release_date.gte", startDate.format(formatter));
-        params.put("primary_release_date.lte", endDate.format(formatter));
+        params.put("release_date.gte", startDate.format(formatter));
+        params.put("release_date.lte", now.format(formatter));
         params.put("with_release_type", "2|3"); // 2: 有限上映, 3: 院線上映
 
         return fetchListFromTmdb(new String[]{"discover", "movie"}, params);
