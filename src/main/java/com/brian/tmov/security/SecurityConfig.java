@@ -42,6 +42,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS).permitAll() // 允許所有預檢請求
                         .requestMatchers("/api/auth/**").permitAll() // 允許登入註冊
                         .requestMatchers("/api/tmdb/**").permitAll() // 允許 TMDB 公開資料
+                        .requestMatchers("/api/theater/**").permitAll() // 允許取得電影時刻
+                        .requestMatchers("/api/bookings/**").permitAll() //允許訂票
                         .requestMatchers("/images/**").permitAll() // 允許圖片
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated() // 其他 API 都要登入

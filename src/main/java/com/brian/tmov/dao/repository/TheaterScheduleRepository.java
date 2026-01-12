@@ -15,6 +15,5 @@ public interface TheaterScheduleRepository extends JpaRepository<TheaterSchedule
     @Query("SELECT s FROM TheaterScheduleEntity s WHERE s.movie.tmdbId = :tmdbId AND s.showDate = :date ORDER BY s.showTime ASC")
     List<TheaterScheduleEntity> findByMovieAndDate(Long tmdbId, LocalDate date);
 
-    // 查詢某部電影所有未來的場次
-    List<TheaterScheduleEntity> findByMovieIdAndShowDateGreaterThanEqualOrderByShowDateAscShowTimeAsc(Long movieId, LocalDate date);
+    void deleteByShowDateBefore(LocalDate date);
 }
