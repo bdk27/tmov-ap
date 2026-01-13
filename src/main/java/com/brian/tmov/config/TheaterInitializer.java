@@ -33,7 +33,7 @@ public class TheaterInitializer implements CommandLineRunner {
             theaterHallRepository.deleteAll(); // 清空舊資料
             initTheaters();
         } else {
-            System.out.println("影廳資料完整 (" + currentCount + " 筆)，略過初始化。");
+            System.out.println("影廳資料完整 (" + currentCount + " 筆)");
         }
 
         // 2. 初始化電影與場次
@@ -41,7 +41,7 @@ public class TheaterInitializer implements CommandLineRunner {
             System.out.println("正在同步 TMDB 現正熱映電影並安排場次...");
             cinemaService.autoSyncMovies();
         } catch (Exception e) {
-            System.out.println("初始化電影失敗 (可能是網路問題): " + e.getMessage());
+            System.out.println("初始化電影失敗: " + e.getMessage());
         }
     }
 

@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/theater/**").permitAll() // 允許取得電影時刻
                         .requestMatchers("/api/bookings/**").permitAll() //允許訂票
                         .requestMatchers("/images/**").permitAll() // 允許圖片
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated() // 其他 API 都要登入
                 )
