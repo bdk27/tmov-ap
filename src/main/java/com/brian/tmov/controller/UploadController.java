@@ -1,6 +1,8 @@
 package com.brian.tmov.controller;
 
 import com.brian.tmov.service.FileService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+@Tag(name = "檔案上傳", description = "處理圖片上傳功能")
 @RestController
 @RequestMapping("/api/upload")
 public class UploadController {
@@ -22,6 +25,7 @@ public class UploadController {
     @Value("${app.base-url}")
     private String appBaseUrl;
 
+    @Operation(summary = "上傳圖片", description = "上傳圖片檔案並回傳可存取的 URL")
     @PostMapping
     public ResponseEntity<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
         // 儲存檔案
