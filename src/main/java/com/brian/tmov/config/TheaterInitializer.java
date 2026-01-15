@@ -26,7 +26,7 @@ public class TheaterInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         long currentCount = theaterHallRepository.count();
 
-        // 1. 檢查影廳資料是否完整
+        // 檢查影廳資料是否完整
         // 如果數量不對 (例如是舊的資料)，就清空重來
         if (currentCount < EXPECTED_HALL_COUNT) {
             System.out.println("偵測到影廳資料不完整 (目前 " + currentCount + " 筆)，正在重置全台影城資料...");
@@ -36,7 +36,7 @@ public class TheaterInitializer implements CommandLineRunner {
             System.out.println("影廳資料完整 (" + currentCount + " 筆)");
         }
 
-        // 2. 初始化電影與場次
+        // 初始化電影與場次
         try {
             System.out.println("正在同步 TMDB 現正熱映電影並安排場次...");
             cinemaService.autoSyncMovies();
@@ -63,23 +63,23 @@ public class TheaterInitializer implements CommandLineRunner {
                 Map.entry("ks-far", "高雄大遠百 TMOV 影城")
         );
 
-        // 為每一家影城建立 5 種標準影廳 (符合您的要求)
+        // 為每一家影城建立 5 種標準影廳
         for (Map.Entry<String, String> entry : cinemas.entrySet()) {
             String cinemaName = entry.getValue();
 
-            // 1. 數位 A 廳 (小廳) - 適合排片量大的數位版
+            // 數位 A 廳
             allHalls.add(createHall(cinemaName + " - 數位 A廳", 8, 10, "Digital-A"));
 
-            // 2. 數位 B 廳 (大廳)
+            // 數位 B 廳
             allHalls.add(createHall(cinemaName + " - 數位 B廳", 12, 18, "Digital-B"));
 
-            // 3. 3D 廳
+            // 3D 廳
             allHalls.add(createHall(cinemaName + " - 3D廳", 10, 16, "3D"));
 
-            // 4. IMAX 廳 (超大)
+            // IMAX 廳
             allHalls.add(createHall(cinemaName + " - IMAX廳", 10, 20, "IMAX"));
 
-            // 5. Gold Class (奢華)
+            // Gold Class
             allHalls.add(createHall(cinemaName + " - Gold Class", 4, 8, "GoldClass"));
         }
 

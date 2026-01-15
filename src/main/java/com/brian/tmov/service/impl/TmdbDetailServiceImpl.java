@@ -74,10 +74,9 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         return transformDetailJson(json, type);
     }
 
-    /**
-     * 深度加工 JSON，將所有相對路徑轉為絕對 URL
-     * (處理根節點、演員列表、推薦列表、人物作品等)
-     */
+
+//    深度加工 JSON，將所有相對路徑轉為絕對 URL
+//    (處理根節點、演員列表、推薦列表、人物作品等)
     private JsonNode transformDetailJson(JsonNode rootNode, String type) {
         if (rootNode == null || !rootNode.isObject()) return rootNode;
         ObjectNode root = (ObjectNode) rootNode;
@@ -139,9 +138,8 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         return rootNode;
     }
 
-    /**
-     * 從翻譯節點中尋找英文傳記
-     */
+
+//    從翻譯節點中尋找英文傳記
     private String findEnglishBiography(JsonNode translationsNode) {
         JsonNode list = translationsNode.path("translations");
         if (list.isArray()) {
@@ -154,9 +152,7 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         return null;
     }
 
-    /**
-     * 提取電影分級 (優先找 TW，其次找 US)
-     */
+//    提取電影分級 (優先找 TW，其次找 US)
     private String extractMovieCertification(JsonNode releaseDatesNode) {
         JsonNode results = releaseDatesNode.path("results");
         String usRating = null;
@@ -186,9 +182,8 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         return usRating != null ? usRating : "N/A";
     }
 
-    /**
-     * 提取 TV 分級 (優先找 TW，其次找 US)
-     */
+
+//    提取 TV 分級 (優先找 TW，其次找 US)
     private String extractTvContentRating(JsonNode contentRatingsNode) {
         JsonNode results = contentRatingsNode.path("results");
         String usRating = null;
@@ -209,9 +204,8 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         return usRating != null ? usRating : "N/A";
     }
 
-    /**
-     * 提取 TW 地區的串流平台，並將 Logo 轉為完整網址
-     */
+
+//    提取 TW 地區的串流平台，並將 Logo 轉為完整網址
     private JsonNode extractWatchProviders(JsonNode providersNode) {
         JsonNode twProviders = providersNode.path("results").path("TW");
 
@@ -241,9 +235,8 @@ public class TmdbDetailServiceImpl implements TmdbDetailService {
         }
     }
 
-    /**
-     * 輔助：將相對路徑轉換並寫入新欄位
-     */
+
+//    將相對路徑轉換並寫入新欄位
     private void processImageField(ObjectNode node, String pathField, String urlField, String type) {
         if (node.has(pathField) && !node.get(pathField).isNull()) {
             String path = node.get(pathField).asText();

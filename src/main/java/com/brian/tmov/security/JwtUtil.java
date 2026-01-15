@@ -36,7 +36,6 @@ public class JwtUtil {
 
     /**
      * 產生 Token
-     * @param email 使用者 Email
      * @param role 角色
      * @param rememberMe 是否記住我
      */
