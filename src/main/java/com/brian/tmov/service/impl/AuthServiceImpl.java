@@ -56,6 +56,8 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String DEFAULT_AVATAR_STYLE = "initials";
 
+    private static final String ADMIN_EMAIL = "briansam195@gmail.com";
+
     @Transactional
     @Override
     public void register(AuthRequest request) {
@@ -264,6 +266,12 @@ public class AuthServiceImpl implements AuthService {
         RoleEntity userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_USER")));
         member.addRole(userRole);
+
+        if (ADMIN_EMAIL.equalsIgnoreCase(email)) {
+            RoleEntity adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_ADMIN")));
+            member.addRole(adminRole);
+        }
 
         return memberRepository.save(member);
     }
