@@ -23,7 +23,6 @@ public class TmdbResponseTransformerServiceImpl implements TmdbResponseTransform
         }
 
         // 限制 total_pages 上限
-        // 防止前端分頁元件產生第 501 頁的按鈕，避免使用者點擊後導致 502 錯誤
         if (responseNode.has("total_pages") && responseNode instanceof ObjectNode) {
             int totalPages = responseNode.get("total_pages").asInt();
             if (totalPages > MAX_TMDB_PAGES) {
@@ -39,7 +38,7 @@ public class TmdbResponseTransformerServiceImpl implements TmdbResponseTransform
         // 取得 "results" 陣列
         JsonNode results = responseNode.get("results");
 
-        // 2. 遍歷 (Loop) 陣列中的每一個項目並加工圖片
+        // 遍歷陣列中的每一個項目並加工圖片
         for (JsonNode item : results) {
             if (item.isObject()) {
                 ObjectNode objectItem = (ObjectNode) item;

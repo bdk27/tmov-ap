@@ -87,7 +87,6 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
                 }
             });
 
-            // 等待結果
             Map<String, String> finalUrls = imagesFuture.get();
             String trailerUrl = trailerFuture.get();
 
@@ -204,7 +203,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         return fetchListFromTmdb(new String[]{"discover", "tv"}, params);
     }
 
-    //    即將上映
+//    即將上映
     @Override
     public JsonNode getUpcomingMovies(Integer page) {
         return fetchListFromTmdb(new String[]{"movie", "upcoming"}, Map.of("page", String.valueOf(page), "region", "TW"));
@@ -237,13 +236,6 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
     @Override
     public JsonNode getPopularPerson(Integer page) {
         return fetchListFromTmdb(new String[]{"person", "popular"}, Map.of("page", String.valueOf(page)));
-    }
-
-//    預告片
-    @Override
-    public JsonNode getTrendingMovies(String timeWindow) {
-        String finalTimeWindow = (timeWindow != null && timeWindow.equals("week")) ? "week" : "day";
-        return fetchListFromTmdb(new String[]{"trending", "movie", finalTimeWindow}, Collections.emptyMap());
     }
 
     //    最新預告片
@@ -284,7 +276,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
 
     private JsonNode fetchPopularMoviePage(Integer page) {
         String pageStr = String.valueOf(page == null || page < 1 ? 1 : page);
-        // 使用 movie/popular 端點
+
         JsonNode result = tmdbClient.get(new String[]{"movie", "popular"},
                 Map.of("language", defaultLanguage, "page", pageStr));
 
@@ -295,10 +287,12 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         if (rootNode.has("results") && rootNode.get("results").isArray()) {
             ArrayNode results = (ArrayNode) rootNode.get("results");
             Iterator<JsonNode> iterator = results.iterator();
+
             while (iterator.hasNext()) {
                 JsonNode item = iterator.next();
                 JsonNode genreIds = item.get("genre_ids");
                 boolean shouldRemove = false;
+
                 if (genreIds != null && genreIds.isArray()) {
                     for (JsonNode idNode : genreIds) {
                         if (bannedIds.contains(idNode.asInt())) {
@@ -310,6 +304,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
                 if (shouldRemove) iterator.remove();
             }
         }
+
         return rootNode;
     }
 
@@ -317,6 +312,7 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
         if (rootNode.has("results") && rootNode.get("results").isArray()) {
             ArrayNode results = (ArrayNode) rootNode.get("results");
             Iterator<JsonNode> iterator = results.iterator();
+
             while (iterator.hasNext()) {
                 JsonNode node = iterator.next();
                 if ("person".equals(node.path("media_type").asText())) {
@@ -324,20 +320,25 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
                 }
             }
         }
+
         return rootNode;
     }
 
     private String findTrailerUrl(JsonNode videoNode) {
         JsonNode results = videoNode.path("results");
         if (!results.isArray() || results.isEmpty()) return null;
+
         String fallbackTrailer = null;
         String chineseTrailer = null;
+
         for (JsonNode video : results) {
             if ("YouTube".equals(video.path("site").asText())) {
                 String key = video.path("key").asText(null);
                 if (key == null) continue;
+
                 String url = "https://www.youtube.com/embed/" + key;
                 String type = video.path("type").asText();
+
                 if ("Trailer".equals(type)) {
                     if ("zh".equals(video.path("iso_639_1").asText(""))) {
                         chineseTrailer = url;
@@ -350,15 +351,18 @@ public class TmdbDiscoverServiceImpl implements TmdbDiscoverService {
                 }
             }
         }
+
         return (chineseTrailer != null) ? chineseTrailer : fallbackTrailer;
     }
 
     private Map<String, String> getBackdropUrls(String backdropPath) {
         String desktopUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w1280");
         String mobileUrl = tmdbGetImageService.getFullImageUrl(backdropPath, "w780");
+
         Map<String, String> urls = new HashMap<>();
         urls.put("backdropDesktopUrl", desktopUrl);
         urls.put("backdropMobileUrl", mobileUrl);
+
         return urls;
     }
 }

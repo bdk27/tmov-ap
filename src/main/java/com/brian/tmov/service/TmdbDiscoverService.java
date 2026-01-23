@@ -9,7 +9,7 @@ public interface TmdbDiscoverService {
 //    取得一張隨機的電影背景圖(首頁)
     Map<String, String> getRandomPopularBackdrops(String category);
 
-//    本日趨勢列表
+//    本日/本週趨勢列表
     JsonNode getTrendingAll(String timeWindow, Integer page);
 
 //    熱門電影列表
@@ -47,8 +47,6 @@ public interface TmdbDiscoverService {
 
 //    好評推薦
     JsonNode getTopRatedMovies(Integer page);
-
-    JsonNode getTrendingMovies(String timeWindow);
 
 //    最新預告片
     String getMovieTrailer(long movieId);

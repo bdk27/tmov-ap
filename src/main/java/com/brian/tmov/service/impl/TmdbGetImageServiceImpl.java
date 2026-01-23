@@ -40,7 +40,6 @@ public class TmdbGetImageServiceImpl implements TmdbGetImageService {
                 log.warn("無法取得 TMDB configuration，將使用預設 URL: {}", this.imageBaseUrl);
             }
         } catch (Exception e) {
-            // 如果 API 呼叫失敗，記錄錯誤但繼續使用預設值
             log.error("初始化取得 TMDB configuration 失敗，將使用預設 URL: {}", this.imageBaseUrl, e);
         }
     }

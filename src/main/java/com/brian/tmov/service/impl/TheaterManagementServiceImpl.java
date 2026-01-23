@@ -55,7 +55,7 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
     @Transactional
     public void addMovie(Long tmdbId) {
         if (theaterMovieRepository.existsByTmdbId(tmdbId)) {
-            throw new IllegalArgumentException("此電影已在上映中");
+            return;
         }
 
         // 呼叫 TMDB API
@@ -125,7 +125,6 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
      */
     @Override
     @Scheduled(cron = "0 0 4 * * ?")
-    @Transactional
     public void autoSyncMovies() {
         log.info("開始執行每日電影同步任務...");
 
@@ -142,6 +141,12 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
                 try {
                     addMovie(tmdbId);
                     log.info("自動上架電影: {}", node.path("title").asText());
+
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 } catch (Exception e) {
                     log.error("自動上架失敗 ID: {}", tmdbId, e);
                 }
@@ -164,7 +169,7 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
         log.info("電影同步任務完成");
     }
 
-    // 直接在資料庫層級刪除過期場次
+    // 直接在資料庫刪除過期場次
     private void cleanupExpiredSchedules() {
         LocalDate today = LocalDate.now();
 
@@ -174,7 +179,7 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
         log.info("已清理 {} 之前的過期場次", today);
     }
 
-    // --- 輔助：產生假場次 ---
+    // 產生假場次
     private void generateMockSchedules(TheaterMovieEntity movie) {
         List<TheaterHallEntity> allHalls = theaterHallRepository.findAll();
         if (allHalls.isEmpty()) return;
