@@ -12,7 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,9 +29,27 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public BookingEntity createBooking(String email, BookingRequest request) {
+//        驗證會員
         MemberEntity member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("會員不存在"));
 
+//        如果同時有別人在訂同一個場次，程式會在這裡等待(Block)，直到對方交易完成
+        List<BookingEntity> existingBookings = bookingRepository.findBookedSeatsForUpdate(request.scheduleId());
+
+//        檢查座位衝突
+        Set<String> occupiedSeats = existingBookings.stream()
+                .map(BookingEntity::getSeats)
+                .filter(s -> s != null && !s.isBlank())
+                .flatMap(s -> Arrays.stream(s.split(",")))
+                .collect(Collectors.toSet());
+
+        for (String seat : request.seats()) {
+            if (occupiedSeats.contains(seat)) {
+                throw new IllegalArgumentException("座位 " + seat + " 剛剛被搶走了！請重新選擇。");
+            }
+        }
+
+//        建立訂單
         BookingEntity booking = new BookingEntity();
         booking.setMember(member);
         booking.setScheduleId(request.scheduleId());
