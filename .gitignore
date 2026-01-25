@@ -33,4 +33,3 @@ build/
 
 ### application ###
 **/application-local.properties
-**/application-prod.properties
