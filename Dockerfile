@@ -22,4 +22,4 @@ ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
 
 # 啟動指令
-ENTRYPOINT ["java", "--enable-preview", "-Xmx380m", "-Xms380m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx380m", "-Xms380m", "-jar", "app.jar"]
