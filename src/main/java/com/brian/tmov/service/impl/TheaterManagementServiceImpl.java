@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -102,19 +104,46 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
     public List<ScheduleResponse> getSchedules(Long tmdbId, LocalDate date) {
         List<TheaterScheduleEntity> schedules = theaterScheduleRepository.findByMovieAndDate(tmdbId, date);
 
-        return schedules.stream().map(s -> new ScheduleResponse(
-                s.getId(),
-                s.getMovie().getTmdbId(),
-                s.getMovie().getTitle(),
-                s.getHall().getName(),
-                s.getHall().getType(),
-                s.getShowDate(),
-                s.getShowTime(),
-                s.getPrice(),
-                s.getHall().getRowCount(),
-                s.getHall().getColCount(),
-                findBookedSeats(s)
-        )).collect(Collectors.toList());
+        if (schedules.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 收集所有場次的 ID
+        List<Long> scheduleIds = schedules.stream()
+                .map(TheaterScheduleEntity::getId)
+                .collect(Collectors.toList());
+
+        List<BookingEntity> allBookings = bookingRepository.findBookedSeatsBatch(scheduleIds);
+
+        Map<Long, List<BookingEntity>> bookingsMap = allBookings.stream()
+                .collect(Collectors.groupingBy(BookingEntity::getScheduleId));
+
+
+        return schedules.stream().map(s -> {
+            // 從 Map 中取出該場次的訂單列表，如果沒有就是空清單
+            List<BookingEntity> currentScheduleBookings = bookingsMap.getOrDefault(s.getId(), Collections.emptyList());
+
+            // 轉換訂單為座位清單
+            List<String> occupiedSeats = currentScheduleBookings.stream()
+                    .map(BookingEntity::getSeats)
+                    .filter(seat -> seat != null && !seat.isBlank())
+                    .flatMap(seat -> java.util.Arrays.stream(seat.split(",")))
+                    .collect(Collectors.toList());
+
+            return new ScheduleResponse(
+                    s.getId(),
+                    s.getMovie().getTmdbId(),
+                    s.getMovie().getTitle(),
+                    s.getHall().getName(),
+                    s.getHall().getType(),
+                    s.getShowDate(),
+                    s.getShowTime(),
+                    s.getPrice(),
+                    s.getHall().getRowCount(),
+                    s.getHall().getColCount(),
+                    occupiedSeats // 直接放入處理好的座位
+            );
+        }).collect(Collectors.toList());
     }
 
     /**

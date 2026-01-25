@@ -33,7 +33,7 @@ public class BookingServiceImpl implements BookingService {
         MemberEntity member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("會員不存在"));
 
-//        如果同時有別人在訂同一個場次，程式會在這裡等待(Block)，直到對方交易完成
+//        如果同時有別人在訂同一個場次，程式會在這裡等待，直到對方交易完成
         List<BookingEntity> existingBookings = bookingRepository.findBookedSeatsForUpdate(request.scheduleId());
 
 //        檢查座位衝突

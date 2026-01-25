@@ -25,4 +25,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM BookingEntity b WHERE b.scheduleId = :scheduleId AND b.status <> 'CANCELLED'")
     List<BookingEntity> findBookedSeatsForUpdate(Long scheduleId);
+
+    // 批次查詢
+    @Query("SELECT b FROM BookingEntity b WHERE b.scheduleId IN :scheduleIds AND b.status <> 'CANCELLED'")
+    List<BookingEntity> findBookedSeatsBatch(List<Long> scheduleIds);
 }
