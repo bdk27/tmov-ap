@@ -43,7 +43,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll() // 允許登入註冊
                         .requestMatchers("/api/tmdb/**").permitAll() // 允許 TMDB 公開資料
                         .requestMatchers("/api/theater/**").permitAll() // 允許取得電影時刻
-                        .requestMatchers("/api/bookings/**").permitAll() //允許訂票
                         .requestMatchers("/images/**").permitAll() // 允許圖片
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()

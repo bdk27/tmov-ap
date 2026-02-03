@@ -170,7 +170,7 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
                 try {
                     addMovie(tmdbId);
                     log.info("自動上架電影: {}", node.path("title").asText());
-
+                    try { Thread.sleep(200); } catch (InterruptedException _) {}
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException ie) {
@@ -215,20 +215,19 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
 
         LocalDate today = LocalDate.now();
 
+        List<TheaterScheduleEntity> batchSchedules = new ArrayList<>();
+
         // 產生未來 7 天 (含今天)
         for (int i = 0; i < 7; i++) {
             LocalDate date = today.plusDays(i);
 
             // 先檢查這部電影在這一天是否已經有排程了
-            List<TheaterScheduleEntity> existingSchedules = theaterScheduleRepository.findByMovieAndDate(movie.getTmdbId(), date);
-            if (!existingSchedules.isEmpty()) {
-                // 如果這一天已經有場次，就跳過 (避免重複產生)
+            if (theaterScheduleRepository.existsByMovieTmdbIdAndShowDate(movie.getTmdbId(), date)) {
                 continue;
             }
 
             // 如果這一天沒場次 (例如新的一天)，就開始排程
             for (TheaterHallEntity hall : allHalls) {
-
                 int showsCount = getShowCountByHallType(hall.getType());
 
                 // 計算每場間隔
@@ -248,9 +247,14 @@ public class TheaterManagementServiceImpl implements TheaterManagementService {
                     int price = getPriceByHallType(hall.getType());
 
                     TheaterScheduleEntity schedule = new TheaterScheduleEntity(movie, hall, date, time, price);
-                    theaterScheduleRepository.save(schedule);
+                    batchSchedules.add(schedule);
                 }
             }
+        }
+
+        if (!batchSchedules.isEmpty()) {
+            theaterScheduleRepository.saveAll(batchSchedules);
+            log.info("為電影 [{}] 新增了 {} 筆場次", movie.getTitle(), batchSchedules.size());
         }
     }
 
